@@ -22,8 +22,9 @@ import tensorflow as tf
 import tensorflow_federated as tff
 
 from tensorflow_federated.python.common_libs import test_utils as common_libs_test_utils
-from tensorflow_federated.python.examples.simple_fedavg import simple_fedavg_tf
-from tensorflow_federated.python.examples.simple_fedavg import simple_fedavg_tff
+
+import simple_fedavg_tf
+import simple_fedavg_tff
 
 
 def _create_test_cnn_model():

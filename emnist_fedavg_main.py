@@ -25,8 +25,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_federated as tff
 
-from tensorflow_federated.python.examples.simple_fedavg import simple_fedavg_tf
-from tensorflow_federated.python.examples.simple_fedavg import simple_fedavg_tff
+import simple_fedavg_tf
+import simple_fedavg_tff
 
 # Training hyperparameters
 flags.DEFINE_integer('total_rounds', 256, 'Number of total training rounds.')
