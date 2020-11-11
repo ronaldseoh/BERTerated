@@ -29,13 +29,20 @@ def get_masked_input_and_labels(inputs, tokenizer, mlm_probability=0.15, **kwarg
     labels = tf.where(~masked_indices, x=-100, y=labels)  # We only compute loss on masked tokens
 
     # 80% of the time, we replace masked input tokens with tokenizer.mask_token ([MASK])
-    indices_replaced = torch.bernoulli(torch.full(labels.shape, 0.8)).bool() & masked_indices
-    inputs[indices_replaced] = self.tokenizer.convert_tokens_to_ids(self.tokenizer.mask_token)
+    indices_replaced = tf.compat.v1.distributions.Bernoulli(probs=0.8).sample(sample_shape=labels.get_shape())
+    indices_replaced = tf.cast(indices_replaced, dtype=tf.bool)
+    indices_replaced = indices_replaced & masked_indices
+
+    mask_token_id = tokenizer.convert_tokens_to_ids(tokenizer.mask_token)
+    inputs = tf.where(indices_replaced, x=mask_token_id, y=inputs)
 
     # 10% of the time, we replace masked input tokens with random word
-    indices_random = torch.bernoulli(torch.full(labels.shape, 0.5)).bool() & masked_indices & ~indices_replaced
-    random_words = torch.randint(len(self.tokenizer), labels.shape, dtype=torch.long)
-    inputs[indices_random] = random_words[indices_random]
+    indices_random = tf.compat.v1.distributions.Bernoulli(probs=0.5).sample(sample_shape=labels.get_shape())
+    indices_random = tf.cast(indices_random, dtype=tf.bool)
+    indices_random = indices_random & masked_indices & ~indices_replaced
+
+    random_words = tf.random.uniform(shape=labels.get_shape(), minval=0, maxval=len(tokenizer), dtype=tf.int32)
+    inputs = tf.where(indices_random, x=random_words, y=inputs)
 
     # The rest of the time (10% of the time) we keep the masked input tokens unchanged
     return inputs, labels
