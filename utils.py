@@ -21,7 +21,7 @@ def get_masked_input_and_labels(
 
     # We shouldn't mask out any special tokens
     if 'special_tokens_mask' not in kwargs:
-        special_tokens_mask = tf.vectorize_map(get_special_tokens_mask, tf.cast(labels, dtype=tf.int64))
+        special_tokens_mask = tf.vectorized_map(get_special_tokens_mask, tf.cast(labels, dtype=tf.int64))
 
     special_tokens_mask = tf.cast(special_tokens_mask, dtype=tf.bool)
 
