@@ -102,9 +102,6 @@ def get_masked_input_and_labels(
     Adapted for our TensorFlow workloads.
     """
     
-    def get_special_tokens_mask(val):
-        return special_ids_mask_table.lookup(val)
-    
     labels = tf.identity(inputs)
 
     # We sample a few tokens in each sequence for MLM training (with probability `mlm_probability`)
@@ -112,7 +109,7 @@ def get_masked_input_and_labels(
 
     # We shouldn't mask out any special tokens
     if 'special_tokens_mask' not in kwargs:
-        special_tokens_mask = tf.vectorized_map(get_special_tokens_mask, tf.cast(labels, dtype=tf.int64))
+        special_tokens_mask = tf.vectorized_map(special_ids_mask_table.lookup, tf.cast(labels, dtype=tf.int64))
 
     special_tokens_mask = tf.cast(special_tokens_mask, dtype=tf.bool)
 
