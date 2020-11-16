@@ -15,6 +15,25 @@
 import tensorflow as tf
 
 
+def initialize_optimizer_vars(model, optimizer):
+    """Creates optimizer variables to assign the optimizer's state."""
+    model_weights = model.weights
+    model_delta = tf.nest.map_structure(tf.zeros_like, model_weights.trainable)
+
+    # Create zero gradients to force an update that doesn't modify.
+    # Force eagerly constructing the optimizer variables. Normally Keras lazily
+    # creates the variables on first usage of the optimizer. Optimizers such as
+    # Adam, Adagrad, or using momentum need to create a new set of variables shape
+    # like the model weights.
+    grads_and_vars = tf.nest.map_structure(
+        lambda x, v: (tf.zeros_like(x), v), tf.nest.flatten(model_delta),
+        tf.nest.flatten(model_weights.trainable))
+
+    optimizer.apply_gradients(grads_and_vars)
+
+    assert optimizer.variables()
+
+
 def keras_evaluate(model, test_data, metric):
     metric.reset_states()
 

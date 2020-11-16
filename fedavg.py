@@ -31,6 +31,7 @@ import tensorflow as tf
 import tensorflow_federated as tff
 
 import fedavg_client
+import utils
 
 @attr.s(eq=False, frozen=True, slots=True)
 class ServerState(object):
@@ -114,22 +115,6 @@ def build_server_broadcast_message(server_state):
         round_num=server_state.round_num)
 
 
-def _initialize_optimizer_vars(model, optimizer):
-    """Creates optimizer variables to assign the optimizer's state."""
-    model_weights = model.weights
-    model_delta = tf.nest.map_structure(tf.zeros_like, model_weights.trainable)
-    # Create zero gradients to force an update that doesn't modify.
-    # Force eagerly constructing the optimizer variables. Normally Keras lazily
-    # creates the variables on first usage of the optimizer. Optimizers such as
-    # Adam, Adagrad, or using momentum need to create a new set of variables shape
-    # like the model weights.
-    grads_and_vars = tf.nest.map_structure(
-        lambda x, v: (tf.zeros_like(x), v), tf.nest.flatten(model_delta),
-        tf.nest.flatten(model_weights.trainable))
-    optimizer.apply_gradients(grads_and_vars)
-    assert optimizer.variables()
-
-
 def build_federated_averaging_process(
     model_fn,
     server_optimizer_fn=lambda: tf.keras.optimizers.SGD(learning_rate=1.0),
@@ -154,7 +139,7 @@ def build_federated_averaging_process(
     def server_init_tf():
         model = model_fn()
         server_optimizer = server_optimizer_fn()
-        _initialize_optimizer_vars(model, server_optimizer)
+        initialize_optimizer_vars(model, server_optimizer)
         return ServerState(
             model_weights=model.weights,
             optimizer_state=server_optimizer.variables(),
@@ -168,7 +153,7 @@ def build_federated_averaging_process(
     def server_update_fn(server_state, model_delta):
         model = model_fn()
         server_optimizer = server_optimizer_fn()
-        _initialize_optimizer_vars(model, server_optimizer)
+        initialize_optimizer_vars(model, server_optimizer)
         return server_update(model, server_optimizer, server_state, model_delta)
 
     @tff.tf_computation(server_state_type)
