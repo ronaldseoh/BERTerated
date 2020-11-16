@@ -139,7 +139,7 @@ def build_federated_averaging_process(
     def server_init_tf():
         model = model_fn()
         server_optimizer = server_optimizer_fn()
-        initialize_optimizer_vars(model, server_optimizer)
+        utils.initialize_optimizer_vars(model, server_optimizer)
         return ServerState(
             model_weights=model.weights,
             optimizer_state=server_optimizer.variables(),
@@ -153,7 +153,7 @@ def build_federated_averaging_process(
     def server_update_fn(server_state, model_delta):
         model = model_fn()
         server_optimizer = server_optimizer_fn()
-        initialize_optimizer_vars(model, server_optimizer)
+        utils.initialize_optimizer_vars(model, server_optimizer)
         return server_update(model, server_optimizer, server_state, model_delta)
 
     @tff.tf_computation(server_state_type)
