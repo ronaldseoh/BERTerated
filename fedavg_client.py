@@ -37,51 +37,6 @@ ModelWeights = collections.namedtuple('ModelWeights', 'trainable non_trainable')
 ModelOutputs = collections.namedtuple('ModelOutputs', 'loss')
 
 
-class KerasModelWrapper(object):
-    """A standalone keras wrapper to be used in TFF."""
-
-    def __init__(self, keras_model, input_spec, loss):
-      """A wrapper class that provides necessary API handles for TFF.
-
-      Args:
-        keras_model: A `tf.keras.Model` to be trained.
-        input_spec: Metadata of dataset that desribes the input tensors, which
-          will be converted to `tff.Type` specifying the expected type of input
-          and output of the model.
-        loss: A `tf.keras.losses.Loss` instance to be used for training.
-      """
-      self.keras_model = keras_model
-      self.input_spec = input_spec
-      self.loss = loss
-
-    def forward_pass(self, batch_input, training=True):
-      """Forward pass of the model to get loss for a batch of data.
-
-      Args:
-        batch_input: A `collections.abc.Mapping` with two keys, `x` for inputs and
-          `y` for labels.
-        training: Boolean scalar indicating training or inference mode.
-
-      Returns:
-        A scalar tf.float32 `tf.Tensor` loss for current batch input.
-      """
-      preds = self.keras_model(batch_input['x'], training=training)
-      loss = self.loss(batch_input['y'], preds)
-      return ModelOutputs(loss=loss)
-
-    @property
-    def weights(self):
-        return ModelWeights(
-            trainable=self.keras_model.trainable_variables,
-            non_trainable=self.keras_model.non_trainable_variables)
-
-    def from_weights(self, model_weights):
-        tff.utils.assign(self.keras_model.trainable_variables, 
-            list(model_weights.trainable))
-        tff.utils.assign(self.keras_model.non_trainable_variables,
-            list(model_weights.non_trainable))
-
-
 @attr.s(eq=False, frozen=True, slots=True)
 class ClientOutput(object):
     """Structure for outputs returned from clients during federated optimization.
