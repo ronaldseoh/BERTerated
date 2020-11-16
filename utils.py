@@ -2,6 +2,13 @@ import transformers
 import tensorflow as tf
 
 
+def keras_evaluate(model, test_data, metric):
+  metric.reset_states()
+  for batch in test_data:
+    preds = model(batch['x'], training=False)
+    metric.update_state(y_true=batch['y'], y_pred=preds)
+  return metric.result()
+
 def get_masked_input_and_labels(
     inputs, vocab_table, special_ids_mask_table, mask_token_id,
     mlm_probability=0.15, **kwargs):

@@ -81,14 +81,6 @@ class KerasModelWrapper(object):
                      list(model_weights.non_trainable))
 
 
-def keras_evaluate(model, test_data, metric):
-  metric.reset_states()
-  for batch in test_data:
-    preds = model(batch['x'], training=False)
-    metric.update_state(y_true=batch['y'], y_pred=preds)
-  return metric.result()
-
-
 @attr.s(eq=False, frozen=True, slots=True)
 class ClientOutput(object):
   """Structure for outputs returned from clients during federated optimization.
@@ -105,88 +97,6 @@ class ClientOutput(object):
   weights_delta = attr.ib()
   client_weight = attr.ib()
   model_output = attr.ib()
-
-
-@attr.s(eq=False, frozen=True, slots=True)
-class ServerState(object):
-  """Structure for state on the server.
-
-  Fields:
-  -   `model_weights`: A dictionary of model's trainable variables.
-  -   `optimizer_state`: Variables of optimizer.
-  -   'round_num': Current round index
-  """
-  model_weights = attr.ib()
-  optimizer_state = attr.ib()
-  round_num = attr.ib()
-
-
-@attr.s(eq=False, frozen=True, slots=True)
-class BroadcastMessage(object):
-  """Structure for tensors broadcasted by server during federated optimization.
-
-  Fields:
-  -   `model_weights`: A dictionary of model's trainable tensors.
-  -   `round_num`: Round index to broadcast. We use `round_num` as an example to
-          show how to broadcast auxiliary information that can be helpful on
-          clients. It is not explicitly used, but can be applied to enable
-          learning rate scheduling.
-  """
-  model_weights = attr.ib()
-  round_num = attr.ib()
-
-
-@tf.function
-def server_update(model, server_optimizer, server_state, weights_delta):
-  """Updates `server_state` based on `weights_delta`.
-
-  Args:
-    model: A `KerasModelWrapper` or `tff.learning.Model`.
-    server_optimizer: A `tf.keras.optimizers.Optimizer`. If the optimizer
-      creates variables, they must have already been created.
-    server_state: A `ServerState`, the state to be updated.
-    weights_delta: A nested structure of tensors holding the updates to the
-      trainable variables of the model.
-
-  Returns:
-    An updated `ServerState`.
-  """
-  # Initialize the model with the current state.
-  model_weights = model.weights
-  tff.utils.assign(model_weights, server_state.model_weights)
-  tff.utils.assign(server_optimizer.variables(), server_state.optimizer_state)
-
-  # Apply the update to the model.
-  grads_and_vars = tf.nest.map_structure(
-      lambda x, v: (-1.0 * x, v), tf.nest.flatten(weights_delta),
-      tf.nest.flatten(model_weights.trainable))
-  server_optimizer.apply_gradients(grads_and_vars, name='server_update')
-
-  # Create a new state based on the updated model.
-  return tff.utils.update_state(
-      server_state,
-      model_weights=model_weights,
-      optimizer_state=server_optimizer.variables(),
-      round_num=server_state.round_num + 1)
-
-
-@tf.function
-def build_server_broadcast_message(server_state):
-  """Builds `BroadcastMessage` for broadcasting.
-
-  This method can be used to post-process `ServerState` before broadcasting.
-  For example, perform model compression on `ServerState` to obtain a compressed
-  state that is sent in a `BroadcastMessage`.
-
-  Args:
-    server_state: A `ServerState`.
-
-  Returns:
-    A `BroadcastMessage`.
-  """
-  return BroadcastMessage(
-      model_weights=server_state.model_weights,
-      round_num=server_state.round_num)
 
 
 @tf.function
