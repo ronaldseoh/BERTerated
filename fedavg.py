@@ -30,8 +30,7 @@ Communication-Efficient Learning of Deep Networks from Decentralized Data
 import tensorflow as tf
 import tensorflow_federated as tff
 
-from fedavg_client import client_update
-
+import fedavg_client
 
 @attr.s(eq=False, frozen=True, slots=True)
 class ServerState(object):
@@ -183,7 +182,7 @@ def build_federated_averaging_process(
     def client_update_fn(tf_dataset, server_message):
         model = model_fn()
         client_optimizer = client_optimizer_fn()
-        return client_update(model, tf_dataset, server_message, client_optimizer)
+        return fedavg_client.client_update(model, tf_dataset, server_message, client_optimizer)
 
     federated_server_state_type = tff.type_at_server(server_state_type)
     federated_dataset_type = tff.type_at_clients(tf_dataset_type)
