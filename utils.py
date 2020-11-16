@@ -16,11 +16,13 @@ import tensorflow as tf
 
 
 def keras_evaluate(model, test_data, metric):
-  metric.reset_states()
-  for batch in test_data:
-    preds = model(batch['x'], training=False)
-    metric.update_state(y_true=batch['y'], y_pred=preds)
-  return metric.result()
+    metric.reset_states()
+
+    for batch in test_data:
+        preds = model(batch['x'], training=False)
+        metric.update_state(y_true=batch['y'], y_pred=preds)
+
+    return metric.result()
 
 
 def get_masked_input_and_labels(
