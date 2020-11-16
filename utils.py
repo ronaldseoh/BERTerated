@@ -15,6 +15,10 @@
 import tensorflow as tf
 
 
+ModelWeights = collections.namedtuple('ModelWeights', 'trainable non_trainable')
+ModelOutputs = collections.namedtuple('ModelOutputs', 'loss')
+
+
 class KerasModelWrapper(object):
     """A standalone keras wrapper to be used in TFF."""
 
