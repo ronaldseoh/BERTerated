@@ -57,15 +57,15 @@ class KerasModelWrapper(object):
     """Forward pass of the model to get loss for a batch of data.
 
     Args:
-      batch_input: A `collections.Mapping` with two keys, `x` for inputs and `y`
-        for labels.
+      batch_input: A `collections.abc.Mapping` with two keys, `x` for inputs and
+        `y` for labels.
       training: Boolean scalar indicating training or inference mode.
 
     Returns:
       A scalar tf.float32 `tf.Tensor` loss for current batch input.
     """
-    preds = self.keras_model(batch_input[0], training=training)
-    loss = self.loss(batch_input[1], preds)
+    preds = self.keras_model(batch_input['x'], training=training)
+    loss = self.loss(batch_input['y'], preds)
     return ModelOutputs(loss=loss)
 
   @property
@@ -84,8 +84,8 @@ class KerasModelWrapper(object):
 def keras_evaluate(model, test_data, metric):
   metric.reset_states()
   for batch in test_data:
-    preds = model(batch[0], training=False)
-    metric.update_state(y_true=batch[1], y_pred=preds)
+    preds = model(batch['x'], training=False)
+    metric.update_state(y_true=batch['y'], y_pred=preds)
   return metric.result()
 
 
@@ -217,7 +217,7 @@ def client_update(model, dataset, server_message, client_optimizer):
     grads = tape.gradient(outputs.loss, model_weights.trainable)
     grads_and_vars = zip(grads, model_weights.trainable)
     client_optimizer.apply_gradients(grads_and_vars)
-    batch_size = tf.shape(batch[0])[0]
+    batch_size = tf.shape(batch['x'])[0]
     num_examples += batch_size
     loss_sum += outputs.loss * tf.cast(batch_size, tf.float32)
 
