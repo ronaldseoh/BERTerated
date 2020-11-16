@@ -32,6 +32,7 @@ import attr
 import tensorflow as tf
 import tensorflow_federated as tff
 
+
 ModelWeights = collections.namedtuple('ModelWeights', 'trainable non_trainable')
 ModelOutputs = collections.namedtuple('ModelOutputs', 'loss')
 

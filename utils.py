@@ -1,4 +1,17 @@
-import transformers
+# Copyright 2020, The TensorFlow Federated Authors.
+# Copyright 2020, Ronald Seoh
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import tensorflow as tf
 
 
@@ -8,6 +21,7 @@ def keras_evaluate(model, test_data, metric):
     preds = model(batch['x'], training=False)
     metric.update_state(y_true=batch['y'], y_pred=preds)
   return metric.result()
+
 
 def get_masked_input_and_labels(
     inputs, vocab_table, special_ids_mask_table, mask_token_id,
