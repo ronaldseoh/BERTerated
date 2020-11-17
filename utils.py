@@ -12,7 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import collections
+import time
+
 import tensorflow as tf
+import tensorflow_federated as tff
+
+import huggingface_keras_layers
 
 
 ModelWeights = collections.namedtuple('ModelWeights', 'trainable non_trainable')
@@ -47,8 +53,8 @@ class KerasModelWrapper(object):
       Returns:
         A scalar tf.float32 `tf.Tensor` loss for current batch input.
       """
-      preds = self.keras_model(batch_input['x'], training=training)
-      loss = self.loss(batch_input['y'], preds)
+      preds = self.keras_model(batch_input[0], training=training)
+      loss = self.loss(batch_input[1], preds)
       return ModelOutputs(loss=loss)
 
     @property
@@ -87,10 +93,34 @@ def keras_evaluate(model, test_data, metric):
     metric.reset_states()
 
     for batch in test_data:
-        preds = model(batch['x'], training=False)
-        metric.update_state(y_true=batch['y'], y_pred=preds)
+        preds = model(batch[0], training=False)
+        metric.update_state(y_true=batch[1], y_pred=preds)
 
     return metric.result()
+
+
+def convert_huggingface_mlm_to_keras(huggingface_model, max_seq_length, batch_size):
+
+    input_ids = tf.keras.Input(
+        shape=[max_seq_length], batch_size=batch_size, dtype="int32")
+
+    main_layer_output = huggingface_model.layers[0](input_ids)
+    
+    # Currently, the existing MLM output head in HuggingFace models
+    # is not immediately Keras serializable.
+    # So we try to create our own head here
+    mlm_layer = huggingface_keras_layers.StandaloneTFMobileBertMLMHead(
+        hidden_size=huggingface_model.config.hidden_size,
+        hidden_act=huggingface_model.config.hidden_act,
+        initializer_range=huggingface_model.config.initializer_range,
+        layer_norm_eps=huggingface_model.config.layer_norm_eps,
+        vocab_size=huggingface_model.config.vocab_size,
+        embedding_size=huggingface_model.config.embedding_size,
+    )
+    
+    mlm_output = mlm_layer(main_layer_output[0])
+
+    return tf.keras.Model(input_ids, mlm_output)
 
 
 def get_masked_input_and_labels(
@@ -109,7 +139,7 @@ def get_masked_input_and_labels(
 
     # We shouldn't mask out any special tokens
     if 'special_tokens_mask' not in kwargs:
-        special_tokens_mask = tf.vectorized_map(special_ids_mask_table.lookup, tf.cast(labels, dtype=tf.int64))
+        special_tokens_mask = tf.vectorized_map(special_ids_mask_table.lookup, tf.cast(labels, dtype=tf.int32))
 
     special_tokens_mask = tf.cast(special_tokens_mask, dtype=tf.bool)
 
@@ -118,7 +148,7 @@ def get_masked_input_and_labels(
     masked_indices = tf.compat.v1.distributions.Bernoulli(probs=probability_matrix).sample()
     masked_indices = tf.cast(masked_indices, dtype=tf.bool)
     
-    labels = tf.where(~masked_indices, x=tf.constant(-100, dtype=tf.int64), y=labels)  # We only compute loss on masked tokens
+    labels = tf.where(~masked_indices, x=tf.constant(-100, dtype=tf.int32), y=labels)  # We only compute loss on masked tokens
 
     # 80% of the time, we replace masked input tokens with tokenizer.mask_token ([MASK])
     indices_replaced = tf.compat.v1.distributions.Bernoulli(probs=0.8).sample(sample_shape=tf.shape(labels))
@@ -132,7 +162,7 @@ def get_masked_input_and_labels(
     indices_random = tf.cast(indices_random, dtype=tf.bool)
     indices_random = indices_random & masked_indices & ~indices_replaced
 
-    random_words = tf.random.uniform(shape=tf.shape(labels), minval=0, maxval=vocab_table.size(), dtype=tf.int64)
+    random_words = tf.random.uniform(shape=tf.shape(labels), minval=0, maxval=tf.cast(vocab_table.size(), dtype=tf.int32), dtype=tf.int32)
     inputs = tf.where(indices_random, x=random_words, y=inputs)
 
     # The rest of the time (10% of the time) we keep the masked input tokens unchanged
