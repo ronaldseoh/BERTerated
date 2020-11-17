@@ -27,10 +27,9 @@ Communication-Efficient Learning of Deep Networks from Decentralized Data
     https://arxiv.org/abs/1602.05629
 """
 
-import collections
-import attr
 import tensorflow as tf
 import tensorflow_federated as tff
+import attr
 
 
 @attr.s(eq=False, frozen=True, slots=True)
@@ -79,7 +78,7 @@ def client_update(model, dataset, server_message, client_optimizer):
         grads = tape.gradient(outputs.loss, model_weights.trainable)
         grads_and_vars = zip(grads, model_weights.trainable)
         client_optimizer.apply_gradients(grads_and_vars)
-        batch_size = tf.shape(batch['x'])[0]
+        batch_size = tf.shape(batch[0])[0]
         num_examples += batch_size
         loss_sum += outputs.loss * tf.cast(batch_size, tf.float32)
 
