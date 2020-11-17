@@ -29,6 +29,7 @@ Communication-Efficient Learning of Deep Networks from Decentralized Data
 
 import tensorflow as tf
 import tensorflow_federated as tff
+import attr
 
 import fedavg_client
 import utils
@@ -123,7 +124,7 @@ def build_federated_averaging_process(
 
     Args:
       model_fn: A no-arg function that returns a
-        `simple_fedavg_tf.KerasModelWrapper`.
+        `utils.KerasModelWrapper`.
       server_optimizer_fn: A no-arg function that returns a
         `tf.keras.optimizers.Optimizer` for server update.
       client_optimizer_fn: A no-arg function that returns a
@@ -133,6 +134,7 @@ def build_federated_averaging_process(
       A `tff.templates.IterativeProcess`.
     """
 
+    # Why do we need this?
     dummy_model = model_fn()
 
     @tff.tf_computation
@@ -146,7 +148,6 @@ def build_federated_averaging_process(
             round_num=0)
 
     server_state_type = server_init_tf.type_signature.result
-
     model_weights_type = server_state_type.model_weights
 
     @tff.tf_computation(server_state_type, model_weights_type.trainable)
@@ -192,11 +193,13 @@ def build_federated_averaging_process(
             client_update_fn, (federated_dataset, server_message_at_client))
 
         weight_denom = client_outputs.client_weight
+
         round_model_delta = tff.federated_mean(
             client_outputs.weights_delta, weight=weight_denom)
 
         server_state = tff.federated_map(server_update_fn,
-                                        (server_state, round_model_delta))
+                                         (server_state, round_model_delta))
+
         round_loss_metric = tff.federated_mean(
             client_outputs.model_output, weight=weight_denom)
 
