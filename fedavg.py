@@ -64,7 +64,26 @@ class BroadcastMessage(object):
 
 
 @tf.function
-def server_update(model, server_optimizer, server_state, weights_delta):
+def build_server_broadcast_message(server_state):
+    """Builds `BroadcastMessage` for broadcasting.
+
+    This method can be used to post-process `ServerState` before broadcasting.
+    For example, perform model compression on `ServerState` to obtain a compressed
+    state that is sent in a `BroadcastMessage`.
+
+    Args:
+      server_state: A `ServerState`.
+
+    Returns:
+      A `BroadcastMessage`.
+    """
+    return BroadcastMessage(
+        model_weights=server_state.model_weights,
+        round_num=server_state.round_num)
+
+
+@tf.function
+def update_server(model, server_optimizer, server_state, weights_delta):
     """Updates `server_state` based on `weights_delta`.
 
     Args:
@@ -87,7 +106,7 @@ def server_update(model, server_optimizer, server_state, weights_delta):
     grads_and_vars = tf.nest.map_structure(
         lambda x, v: (-1.0 * x, v), tf.nest.flatten(weights_delta),
         tf.nest.flatten(model_weights.trainable))
-    server_optimizer.apply_gradients(grads_and_vars, name='server_update')
+    server_optimizer.apply_gradients(grads_and_vars, name='update_server')
 
     # Create a new state based on the updated model.
     return tff.utils.update_state(
@@ -97,27 +116,9 @@ def server_update(model, server_optimizer, server_state, weights_delta):
         round_num=server_state.round_num + 1)
 
 
-@tf.function
-def build_server_broadcast_message(server_state):
-    """Builds `BroadcastMessage` for broadcasting.
-
-    This method can be used to post-process `ServerState` before broadcasting.
-    For example, perform model compression on `ServerState` to obtain a compressed
-    state that is sent in a `BroadcastMessage`.
-
-    Args:
-      server_state: A `ServerState`.
-
-    Returns:
-      A `BroadcastMessage`.
-    """
-    return BroadcastMessage(
-        model_weights=server_state.model_weights,
-        round_num=server_state.round_num)
-
-
 def build_federated_averaging_process(
     model_fn,
+    model_input_spec,
     server_optimizer_fn=lambda: tf.keras.optimizers.SGD(learning_rate=1.0),
     client_optimizer_fn=lambda: tf.keras.optimizers.SGD(learning_rate=0.1)):
     """Builds the TFF computations for optimization using federated averaging.
@@ -134,14 +135,12 @@ def build_federated_averaging_process(
       A `tff.templates.IterativeProcess`.
     """
 
-    # Why do we need this?
-    dummy_model = model_fn()
-
     @tff.tf_computation
     def server_init_tf():
         model = model_fn()
         server_optimizer = server_optimizer_fn()
         utils.initialize_optimizer_vars(model, server_optimizer)
+
         return ServerState(
             model_weights=model.weights,
             optimizer_state=server_optimizer.variables(),
@@ -155,25 +154,28 @@ def build_federated_averaging_process(
         model = model_fn()
         server_optimizer = server_optimizer_fn()
         utils.initialize_optimizer_vars(model, server_optimizer)
-        return server_update(model, server_optimizer, server_state, model_delta)
+
+        return update_server(model, server_optimizer, server_state, model_delta)
 
     @tff.tf_computation(server_state_type)
     def server_message_fn(server_state):
         return build_server_broadcast_message(server_state)
 
     server_message_type = server_message_fn.type_signature.result
-    tf_dataset_type = tff.SequenceType(dummy_model.input_spec)
+    
+    tf_dataset_type = tff.SequenceType(model_input_spec)
+    federated_dataset_type = tff.type_at_clients(tf_dataset_type)
 
     @tff.tf_computation(tf_dataset_type, server_message_type)
     def client_update_fn(tf_dataset, server_message):
         model = model_fn()
         client_optimizer = client_optimizer_fn()
-        return fedavg_client.client_update(model, tf_dataset, server_message, client_optimizer)
+        
+        # Note: update_client() is a tf function
+        return fedavg_client.update_client(
+            model, tf_dataset, server_message, client_optimizer)
 
-    federated_server_state_type = tff.type_at_server(server_state_type)
-    federated_dataset_type = tff.type_at_clients(tf_dataset_type)
-
-    @tff.federated_computation(federated_server_state_type,
+    @tff.federated_computation(tff.type_at_server(server_state_type),
                                federated_dataset_type)
     def run_one_round(server_state, federated_dataset):
         """Orchestration logic for one round of computation.
@@ -186,22 +188,24 @@ def build_federated_averaging_process(
         Returns:
         A tuple of updated `ServerState` and `tf.Tensor` of average loss.
         """
+        # Prepare server_message to be sent to the clients,
+        # based on the server_state from previous round
         server_message = tff.federated_map(server_message_fn, server_state)
-        server_message_at_client = tff.federated_broadcast(server_message)
 
+        # Update the client with the new server_message and dataset
         client_outputs = tff.federated_map(
-            client_update_fn, (federated_dataset, server_message_at_client))
+            client_update_fn, (federated_dataset, tff.federated_broadcast(server_message)))
 
-        weight_denom = client_outputs.client_weight
 
         round_model_delta = tff.federated_mean(
-            client_outputs.weights_delta, weight=weight_denom)
+            client_outputs.weights_delta, weight=client_outputs.client_weight)
 
+        # Update server state given the current round's completion
         server_state = tff.federated_map(server_update_fn,
                                          (server_state, round_model_delta))
 
         round_loss_metric = tff.federated_mean(
-            client_outputs.model_output, weight=weight_denom)
+            client_outputs.model_output, weight=client_outputs.client_weight)
 
         return server_state, round_loss_metric
 
