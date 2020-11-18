@@ -131,3 +131,4 @@ dmypy.json
 # Transformers model weights
 transformers_cache/
 .DS_Store
+tff_cache
