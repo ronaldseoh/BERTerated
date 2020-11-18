@@ -26,10 +26,10 @@ Communication-Efficient Learning of Deep Networks from Decentralized Data
     Seth Hampson, Blaise Aguera y Arcas. AISTATS 2017.
     https://arxiv.org/abs/1602.05629
 """
-
 import tensorflow as tf
 import tensorflow_federated as tff
 import attr
+import numpy as np
 
 import fedavg_client
 import utils
@@ -119,6 +119,8 @@ def update_server(model, server_optimizer, server_state, weights_delta):
 def build_federated_averaging_process(
     model_fn,
     model_input_spec,
+    initial_trainable_weights=None,
+    initial_non_trainable_weights=None,
     server_optimizer_fn=lambda: tf.keras.optimizers.SGD(learning_rate=1.0),
     client_optimizer_fn=lambda: tf.keras.optimizers.SGD(learning_rate=0.1)):
     """Builds the TFF computations for optimization using federated averaging.
@@ -138,13 +140,24 @@ def build_federated_averaging_process(
     @tff.tf_computation
     def server_init_tf():
         model = model_fn()
+
         server_optimizer = server_optimizer_fn()
         utils.initialize_optimizer_vars(model, server_optimizer)
+            
+        if (initial_trainable_weights is not None) and (initial_non_trainable_weights is not None):
+            initial_server_state = ServerState(
+                model_weights=utils.ModelWeights(
+                    trainable=initial_trainable_weights,
+                    non_trainable=initial_non_trainable_weights),
+                optimizer_state=server_optimizer.variables(),
+                round_num=0)
+        else:
+            initial_server_state = ServerState(
+                model_weights=model.weights,
+                optimizer_state=server_optimizer.variables(),
+                round_num=0)
 
-        return ServerState(
-            model_weights=model.weights,
-            optimizer_state=server_optimizer.variables(),
-            round_num=0)
+        return initial_server_state
 
     server_state_type = server_init_tf.type_signature.result
     model_weights_type = server_state_type.model_weights
