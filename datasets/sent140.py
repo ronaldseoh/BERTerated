@@ -1,4 +1,5 @@
 # Copyright 2019, The TensorFlow Federated Authors.
+# Copyright 2020, Ronald Seoh
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Libraries for the Shakespeare dataset for federated learning simulation."""
+"""Libraries for the Sentiment140 dataset for federated learning simulation."""
 
 import collections
 import os
