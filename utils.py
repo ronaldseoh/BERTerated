@@ -121,5 +121,7 @@ def convert_huggingface_mlm_to_keras(huggingface_model, max_seq_length, batch_si
     
     mlm_output = mlm_layer(main_layer_output[0])
 
+    mlm_layer.set_weights(huggingface_model.layers[1].get_weights())
+
     return tf.keras.Model(input_ids, mlm_output)
 
