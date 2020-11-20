@@ -70,6 +70,27 @@ class KerasModelWrapper(object):
             list(model_weights.non_trainable))
 
 
+class BertCrossEntropyError(tf.keras.losses.Loss):
+
+    def call(self, y_true, y_pred):
+        # Need to filter out positions with the label '-100'
+        active_loss = tf.not_equal(y_true, -100)
+
+        tf.print(y_true.get_shape())
+        tf.print(y_pred.get_shape())
+
+        y_true_reduced = tf.ragged.boolean_mask(y_true, active_loss).to_tensor()
+        y_pred_reduced = tf.ragged.boolean_mask(y_pred, active_loss).to_tensor()
+
+        tf.print(y_true_reduced.get_shape())
+        tf.print(y_pred_reduced.get_shape())
+
+        loss = tf.keras.losses.sparse_categorical_crossentropy(
+            y_true_reduced, y_pred_reduced, from_logits=True)
+
+        return loss
+
+
 def initialize_optimizer_vars(model, optimizer):
     """Creates optimizer variables to assign the optimizer's state."""
     model_weights = model.weights
