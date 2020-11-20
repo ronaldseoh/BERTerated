@@ -136,7 +136,9 @@ def main(argv):
     if len(argv) > 1:
         raise app.UsageError('Too many command-line arguments.')
 
+    # Train/test dataset
     train_data, test_data = get_emnist_dataset()
+    
 
     def tff_model_fn():
         """Constructs a fully initialized model for use in federated averaging."""
@@ -144,7 +146,7 @@ def main(argv):
 
         loss = tf.keras.losses.SparseCategoricalCrossentropy()
 
-        return utils.KerasModelWrapper(keras_model, train_data.element_spec, loss)
+        return utils.KerasModelWrapper(keras_model, test_data.element_spec, loss)
 
     iterative_process = fedavg.build_federated_averaging_process(
         model_fn=tff_model_fn, 
