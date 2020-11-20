@@ -1,5 +1,6 @@
-from . import shakespeare
+from . import preprocessing_for_bert
+
 
 __all__ = (
-    shakespeare
+    preprocessing_for_bert,
 )
