@@ -90,16 +90,13 @@ def get_masked_input_and_labels(inputs,
     indices_random = tf.cast(indices_random, dtype=tf.bool)
     indices_random = indices_random & masked_indices & ~indices_replaced
 
-    random_words = tf.random.uniform(shape=tf.shape(labels), minval=0, maxval=tf.cast(vocab_table.size(), dtype=dtype), dtype=dtype)
+    random_words = tf.random.uniform(
+        shape=tf.shape(labels), minval=0, maxval=tf.cast(vocab_table.size(), dtype=dtype), dtype=dtype)
+
     inputs = tf.where(indices_random, x=random_words, y=inputs)
-    
-    # Sample weights: Completely ignore the data points with the label '-100'
-    sample_weights = tf.identity(labels)
-    sample_weights = tf.where(
-        labels==-100, x=tf.constant(0, dtype=dtype), y=tf.constant(1, dtype=dtype))
 
     # The rest of the time (10% of the time) we keep the masked input tokens unchanged
-    return inputs, labels, sample_weights
+    return inputs, labels
 
 
 # New preprocessing steps based on TF.text tokenizer
@@ -137,21 +134,19 @@ def tokenize_and_mask(x, max_seq_length,
     tokenized_with_special_tokens = tf.cast(tokenized_with_special_tokens, dtype=dtype)
 
     # Random masking for the BERT MLM
-    masked, labels, sample_weights = get_masked_input_and_labels(
+    masked, labels = get_masked_input_and_labels(
         tokenized_with_special_tokens,
         vocab_lookup_table, 
         special_ids_mask_table,
         tf.constant(mask_token_id, dtype=tf.int32))
 
     # Squeeze out the first dimension
-    #masked = tf.squeeze(masked)
-    #labels = tf.squeeze(labels)
-    #sample_weights = tf.squeeze(sample_weights)
+    masked = tf.squeeze(masked)
+    labels = tf.squeeze(labels)
 
     # Manually settting the shape here so that TensorFlow graph
     # could know the sizes in advnace
-    masked.set_shape([None, max_seq_length])
-    labels.set_shape([None, max_seq_length])
-    sample_weights.set_shape([None, max_seq_length])
-    
-    return masked, labels, sample_weights
+    masked.set_shape([max_seq_length])
+    labels.set_shape([max_seq_length])
+
+    return masked, labels
