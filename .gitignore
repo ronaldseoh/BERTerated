@@ -135,3 +135,4 @@ tff_cache
 
 # Keras saved model files
 results/*/*/model
+results/
