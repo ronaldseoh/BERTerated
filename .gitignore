@@ -132,3 +132,6 @@ dmypy.json
 transformers_cache/
 .DS_Store
 tff_cache
+
+# Keras saved model files
+results/*/*/model
