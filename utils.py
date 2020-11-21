@@ -70,20 +70,14 @@ class KerasModelWrapper(object):
             list(model_weights.non_trainable))
 
 
-class BertCrossEntropyError(tf.keras.losses.Loss):
+class MaskedLMCrossEntropy(tf.keras.losses.Loss):
 
     def call(self, y_true, y_pred):
         # Need to filter out positions with the label '-100'
-        active_loss = tf.not_equal(y_true, -100)
-
-        tf.print(y_true.get_shape())
-        tf.print(y_pred.get_shape())
-
-        y_true_reduced = tf.ragged.boolean_mask(y_true, active_loss).to_tensor()
-        y_pred_reduced = tf.ragged.boolean_mask(y_pred, active_loss).to_tensor()
-
-        tf.print(y_true_reduced.get_shape())
-        tf.print(y_pred_reduced.get_shape())
+        masked_positions = tf.where(tf.not_equal(y_true, -100))
+        
+        y_true_reduced = tf.gather_nd(y_true, masked_positions)
+        y_pred_reduced = tf.gather_nd(y_pred, masked_positions)
 
         loss = tf.keras.losses.sparse_categorical_crossentropy(
             y_true_reduced, y_pred_reduced, from_logits=True)
@@ -121,10 +115,10 @@ def keras_evaluate(model, test_data, metric):
     return metric.result()
 
 
-def convert_huggingface_mlm_to_keras(huggingface_model, max_seq_length, batch_size):
+def convert_huggingface_mlm_to_keras(huggingface_model, max_seq_length):
 
     input_ids = tf.keras.Input(
-        shape=[max_seq_length], batch_size=batch_size, dtype="int32")
+        shape=[max_seq_length], dtype="int32")
 
     main_layer_output = huggingface_model.layers[0](input_ids)
     
