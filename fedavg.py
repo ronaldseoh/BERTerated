@@ -106,6 +106,7 @@ def update_server(model, server_optimizer, server_state, weights_delta):
     grads_and_vars = tf.nest.map_structure(
         lambda x, v: (-1.0 * x, v), tf.nest.flatten(weights_delta),
         tf.nest.flatten(model_weights.trainable))
+
     server_optimizer.apply_gradients(grads_and_vars, name='update_server')
 
     # Create a new state based on the updated model.
@@ -209,13 +210,12 @@ def build_federated_averaging_process(
         client_outputs = tff.federated_map(
             client_update_fn, (federated_dataset, tff.federated_broadcast(server_message)))
 
-
         round_model_delta = tff.federated_mean(
             client_outputs.weights_delta, weight=client_outputs.client_weight)
 
         # Update server state given the current round's completion
-        server_state = tff.federated_map(server_update_fn,
-                                         (server_state, round_model_delta))
+        server_state = tff.federated_map(
+            server_update_fn, (server_state, round_model_delta))
 
         round_loss_metric = tff.federated_mean(
             client_outputs.model_output, weight=client_outputs.client_weight)
