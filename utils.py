@@ -83,6 +83,32 @@ class MaskedLMCrossEntropy(tf.keras.losses.Loss):
             y_true_reduced, y_pred_reduced, from_logits=True)
 
         return loss
+    
+    
+class MaskedLMCrossEntropyMetric(tf.keras.metrics.Metric):
+
+    def __init__(self, name='masked_lm_cross_entropy_metric', **kwargs):
+        super(MaskedLMCrossEntropyMetric, self).__init__(name=name, **kwargs)
+        self.cross_entropy = self.add_weight(name='ce', initializer='zeros')
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        
+        # Need to filter out positions with the label '-100'
+        masked_positions = tf.where(tf.not_equal(y_true, -100))
+        
+        y_true_reduced = tf.gather_nd(y_true, masked_positions)
+        y_pred_reduced = tf.gather_nd(y_pred, masked_positions)
+
+        cross_entropy = tf.keras.losses.sparse_categorical_crossentropy(
+            y_true_reduced, y_pred_reduced, from_logits=True)
+        
+        self.cross_entropy.assign_add(tf.reduce_sum(cross_entropy))
+
+    def result(self):
+        return self.cross_entropy
+
+    def reset_states(self):
+        self.cross_entropy.assign(0)
 
 
 def initialize_optimizer_vars(model, optimizer):
