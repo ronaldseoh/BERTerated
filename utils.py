@@ -144,7 +144,7 @@ def keras_evaluate(model, test_data, metric):
 def convert_huggingface_mlm_to_keras(huggingface_model, max_seq_length):
 
     input_ids = tf.keras.Input(
-        shape=[max_seq_length], dtype="int32")
+        shape=[max_seq_length], dtype=tf.int32)
 
     main_layer_output = huggingface_model.layers[0](input_ids)
     
@@ -165,4 +165,3 @@ def convert_huggingface_mlm_to_keras(huggingface_model, max_seq_length):
     mlm_layer.set_weights(huggingface_model.layers[1].get_weights())
 
     return tf.keras.Model(input_ids, mlm_output)
-
