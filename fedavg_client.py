@@ -81,7 +81,7 @@ def update_client(model, dataset, server_message, client_optimizer):
     batch_count = tf.constant(0, dtype=tf.float32)
     
     # Client training.
-    tf.print("Client", client_temp_id, ": training start.")
+    tf.print("Anonymous client", client_temp_id, ": training start.")
     
     # Explicit use `iter` for dataset is a trick that makes TFF more robust in
     # GPU simulation and slightly more performant in the unconventional usage
@@ -100,11 +100,11 @@ def update_client(model, dataset, server_message, client_optimizer):
 
         num_examples += batch_size
         
-        tf.print("Client", client_temp_id, ":", batch_count, " batch,", num_examples, " examples processed")
+        tf.print("Anonymous client", client_temp_id, ": batch", batch_count, ",", num_examples, "sexamples processed")
 
         loss_sum += outputs.loss * tf.cast(batch_size, tf.float32)
         
-    tf.print("Client", client_temp_id, ": training finished.", num_examples, " examples processed, loss:", loss_sum)
+    tf.print("Anonymous client", client_temp_id, ": training finished.", num_examples, " examples processed, loss:", loss_sum)
 
     # Compare the weight values with the one from server message
     weights_delta = tf.nest.map_structure(lambda a, b: a - b,
@@ -117,4 +117,5 @@ def update_client(model, dataset, server_message, client_optimizer):
     if num_examples == 0:
         return ClientOutput(weights_delta, client_weight, loss_sum / client_weight)
     else:
+        # Don't divide by 0
         return ClientOutput(weights_delta, client_weight, loss_sum)
