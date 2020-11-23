@@ -100,7 +100,7 @@ def update_client(model, dataset, server_message, client_optimizer):
 
         num_examples += batch_size
         
-        tf.print("Anonymous client", client_temp_id, ": batch", batch_count, ",", num_examples, "sexamples processed")
+        tf.print("Anonymous client", client_temp_id, ": batch", batch_count, ",", num_examples, "examples processed")
 
         loss_sum += outputs.loss * tf.cast(batch_size, tf.float32)
         
