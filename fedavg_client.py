@@ -26,10 +26,12 @@ Communication-Efficient Learning of Deep Networks from Decentralized Data
     Seth Hampson, Blaise Aguera y Arcas. AISTATS 2017.
     https://arxiv.org/abs/1602.05629
 """
+import sys
 
 import tensorflow as tf
 import tensorflow_federated as tff
 import attr
+import numpy as np
 
 
 @attr.s(eq=False, frozen=True, slots=True)
@@ -50,8 +52,29 @@ class ClientOutput(object):
     model_output = attr.ib()
 
 
+@attr.s
+class ClientState(object):
+    
+    client_serial = attr.ib()
+
+
+def initialize_client_state(client_serial=None):
+    
+    # Assign some random id to each client to see how individual clients
+    # are performing their updates
+    if client_serial:
+        client_serial = client_serial
+    else:
+        client_serial = np.random.randint(0, sys.maxsize)
+    
+    initial_client_state = ClientState(
+        client_serial=client_serial
+    )
+    
+    return initial_client_state
+
 @tf.function
-def update_client(model, dataset, server_message, client_optimizer):
+def update_client(model, dataset, server_message, client_state, client_optimizer):
     """Performans client local training of `model` on `dataset`.
 
     Args:
@@ -63,14 +86,14 @@ def update_client(model, dataset, server_message, client_optimizer):
     Returns:
       A 'ClientOutput`.
     """
-    
-    # Assign some random id to each client to see how individual clients
-    # are performing their updates
-    client_temp_id = tf.random.uniform(shape=(), minval=0, maxval=30000, dtype=tf.int32)
-    
+
     # Apply the new version of model from server
-    tf.print("Client", client_temp_id, ": updated the model with server message.")
+    tf.print("Anonymous client", client_state.client_serial, ": updated the model with server message.")
+
     tff.utils.assign(model.weights, server_message.model_weights)
+
+    # Start the training on the client side.
+    tf.print("Anonymous client", client_state.client_serial, ": training start.")
 
     # Total number of data points processed by
     # this client's optimizer
@@ -79,15 +102,14 @@ def update_client(model, dataset, server_message, client_optimizer):
     loss_sum = tf.constant(0, dtype=tf.float32)
     
     batch_count = tf.constant(0, dtype=tf.float32)
-    
-    # Client training.
-    tf.print("Anonymous client", client_temp_id, ": training start.")
-    
+
     # Explicit use `iter` for dataset is a trick that makes TFF more robust in
     # GPU simulation and slightly more performant in the unconventional usage
     # of large number of small datasets.
     for batch in iter(dataset):
+
         batch_count += 1
+
         with tf.GradientTape() as tape:
             outputs = model.forward_pass(batch)
 
@@ -100,11 +122,11 @@ def update_client(model, dataset, server_message, client_optimizer):
 
         num_examples += batch_size
         
-        tf.print("Anonymous client", client_temp_id, ": batch", batch_count, ",", num_examples, "examples processed")
+        tf.print("Anonymous client", client_state.client_serial, ": batch", batch_count, ",", num_examples, "examples processed")
 
         loss_sum += outputs.loss * tf.cast(batch_size, tf.float32)
         
-    tf.print("Anonymous client", client_temp_id, ": training finished.", num_examples, " examples processed, loss:", loss_sum)
+    tf.print("Anonymous client", client_state.client_serial, ": training finished.", num_examples, " examples processed, loss:", loss_sum)
 
     # Compare the weight values with the one from server message
     weights_delta = tf.nest.map_structure(lambda a, b: a - b,
@@ -115,7 +137,7 @@ def update_client(model, dataset, server_message, client_optimizer):
     client_weight = tf.cast(num_examples, tf.float32)
 
     if num_examples == 0:
-        return ClientOutput(weights_delta, client_weight, loss_sum / client_weight)
+        return ClientOutput(weights_delta, client_weight, loss_sum / client_weight), tff.utils.update_state(client_state, client_state.client_serial)
     else:
         # Don't divide by 0
-        return ClientOutput(weights_delta, client_weight, loss_sum)
+        return ClientOutput(weights_delta, client_weight, loss_sum), tff.utils.update_state(client_state, client_serial=client_state.client_serial)
