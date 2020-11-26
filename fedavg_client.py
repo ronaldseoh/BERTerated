@@ -51,7 +51,7 @@ class ClientOutput(object):
 
 
 @attr.s
-class ClientState(Object):
+class ClientState(object):
     
     anonymous_client_id = attr.ib(type=tf.int64)
 
