@@ -137,7 +137,7 @@ def update_client(model, dataset, server_message, client_state, client_optimizer
     client_weight = tf.cast(num_examples, tf.float32)
 
     if num_examples == 0:
-        return ClientOutput(weights_delta, client_weight, loss_sum / client_weight), tff.utils.update_state(client_state, client_state.client_serial)
-    else:
         # Don't divide by 0
-        return ClientOutput(weights_delta, client_weight, loss_sum), tff.utils.update_state(client_state, client_serial=client_state.client_serial)
+        return ClientOutput(weights_delta, client_weight, loss_sum), ClientState(client_serial=client_state.client_serial)
+    else:
+        return ClientOutput(weights_delta, client_weight, loss_sum / client_weight), ClientState(client_serial=client_state.client_serial)
