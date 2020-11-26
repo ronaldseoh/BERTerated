@@ -145,7 +145,8 @@ def build_federated_averaging_process(
         server_optimizer = server_optimizer_fn()
         utils.initialize_optimizer_vars(model, server_optimizer)
             
-        if (initial_trainable_weights is not None) and (initial_non_trainable_weights is not None):
+        if (initial_trainable_weights is not None) \
+        and (initial_non_trainable_weights is not None):
             initial_server_state = ServerState(
                 model_weights=utils.ModelWeights(
                     trainable=initial_trainable_weights,
@@ -168,11 +169,12 @@ def build_federated_averaging_process(
     model_weights_type = server_state_type.model_weights
     
     
+    # Type for client states
+    # Using this dummy function to obtain type signatures from it
     @tff.tf_computation
     def get_dummy_client_state():
         return fedavg_client.ClientState(client_serial=0)
-    
-    # Type for client states
+
     client_state_type = get_dummy_client_state.type_signature.result
 
 
