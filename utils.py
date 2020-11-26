@@ -73,42 +73,7 @@ class KerasModelWrapper(object):
 class MaskedLMCrossEntropy(tf.keras.losses.Loss):
 
     def call(self, y_true, y_pred):
-        # Need to filter out positions with the label '-100'
-        masked_positions = tf.where(tf.not_equal(y_true, -100))
-        
-        y_true_reduced = tf.gather_nd(y_true, masked_positions)
-        y_pred_reduced = tf.gather_nd(y_pred, masked_positions)
-
-        loss = tf.keras.losses.sparse_categorical_crossentropy(
-            y_true_reduced, y_pred_reduced, from_logits=True)
-
-        return loss
-    
-    
-class MaskedLMCrossEntropyMetric(tf.keras.metrics.Metric):
-
-    def __init__(self, name='masked_lm_cross_entropy_metric', **kwargs):
-        super(MaskedLMCrossEntropyMetric, self).__init__(name=name, **kwargs)
-        self.cross_entropy = self.add_weight(name='ce', initializer='zeros')
-
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        
-        # Need to filter out positions with the label '-100'
-        masked_positions = tf.where(tf.not_equal(y_true, -100))
-        
-        y_true_reduced = tf.gather_nd(y_true, masked_positions)
-        y_pred_reduced = tf.gather_nd(y_pred, masked_positions)
-
-        cross_entropy = tf.keras.losses.sparse_categorical_crossentropy(
-            y_true_reduced, y_pred_reduced, from_logits=True)
-        
-        self.cross_entropy.assign_add(tf.reduce_sum(cross_entropy))
-
-    def result(self):
-        return self.cross_entropy
-
-    def reset_states(self):
-        self.cross_entropy.assign(0)
+        return calculate_masked_lm_cross_entropy(y_true, y_pred)
 
 
 def initialize_optimizer_vars(model, optimizer):
@@ -141,7 +106,20 @@ def keras_evaluate(model, test_data, metric):
     return metric.result()
 
 
-def convert_huggingface_mlm_to_keras(huggingface_model, max_seq_length):
+def calculate_masked_lm_cross_entropy(y_true, y_pred):
+
+    # Need to filter out positions with the label '-100'
+    masked_positions = tf.where(tf.not_equal(y_true, -100))
+
+    y_true_reduced = tf.gather_nd(y_true, masked_positions)
+    y_pred_reduced = tf.gather_nd(y_pred, masked_positions)
+
+    loss = tf.keras.losses.sparse_categorical_crossentropy(
+        y_true_reduced, y_pred_reduced, from_logits=True)
+
+    return loss
+
+def convert_huggingface_mlm_to_keras(huggingface_model, max_seq_length, use_pretrained_mlm_weights=False):
 
     input_ids = tf.keras.Input(
         shape=[max_seq_length], dtype=tf.int32)
