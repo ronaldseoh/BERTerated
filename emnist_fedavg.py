@@ -155,26 +155,44 @@ def main(argv):
         client_optimizer_fn=client_optimizer_fn)
 
     server_state = iterative_process.initialize()
+    
+    client_states = {}
+    
+    # Initialize client states for all clients
+    for i, client_id in enumerate(train_data.client_ids):
+        client_states[client_id] = fedavg_client.initialize_client_state(client_serial=i)
 
     metric = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
 
     model = tff_model_fn()
 
     for round_num in range(FLAGS.total_rounds):
-        sampled_clients = np.random.choice(
-            train_data.client_ids,
+
+        sampled_client_serials = np.random.choice(
+            len(train_data.client_ids),
             size=FLAGS.train_clients_per_round,
             replace=False)
 
         sampled_train_data = [
-            train_data.create_tf_dataset_for_client(client)
-            for client in sampled_clients
+            train_data.create_tf_dataset_for_client(train_data.client_ids[client_serial])
+            for client_serial in sampled_client_serials
         ]
+        
+        sampled_client_states = [
+            client_states[train_data.client_ids[client_serial]] for client_serial in sampled_client_serials]
 
-        server_state, train_metrics = iterative_process.next(
-            server_state, sampled_train_data)
+        server_state, new_client_states, train_metrics = iterative_process.next(
+            server_state, sampled_client_states, sampled_train_data)
 
         print(f'Round {round_num} training loss: {train_metrics}')
+        
+        # Update client states
+        print("Updating client states.")
+
+        for state in new_client_states:
+            client_states[train_data.client_ids[state.client_serial]] = state
+
+        print()
 
         if round_num % FLAGS.rounds_per_eval == 0:
             model.from_weights(server_state.model_weights)
