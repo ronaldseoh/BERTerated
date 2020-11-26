@@ -159,10 +159,33 @@ def build_federated_averaging_process(
                 round_num=0)
 
         return initial_server_state
+        
 
+    @tff.tf_computation
+    def client_init_tf():
+        
+        # Assign some random id to each client to see how individual clients
+        # are performing their updates
+        client_temp_id = tf.random.uniform(shape=(), minval=0, maxval=30000000000, dtype=tf.int64)
+        
+        initial_client_state = fedavg_client.ClientState(
+            anonymous_client_id=client_temp_id
+        )
+        
+        return initial_client_state
+
+
+    # Type for server state
     server_state_type = server_init_tf.type_signature.result
+    
+    # Type for model weights
     model_weights_type = server_state_type.model_weights
+    
+    # Type for client states
+    client_state_type = client_init_tf.type_signature.result
 
+
+    # Server updating logic
     @tff.tf_computation(server_state_type, model_weights_type.trainable)
     def server_update_fn(server_state, model_delta):
         model = model_fn()
@@ -171,27 +194,38 @@ def build_federated_averaging_process(
 
         return update_server(model, server_optimizer, server_state, model_delta)
 
+
+    # Server messages generation
     @tff.tf_computation(server_state_type)
     def server_message_fn(server_state):
         return build_server_broadcast_message(server_state)
 
+
+    # Type for server messages (to clients)
     server_message_type = server_message_fn.type_signature.result
-    
-    tf_dataset_type = tff.SequenceType(model_input_spec)
+
+    # Type for TF datasets
+    tf_dataset_type = tff.SequenceType(model_input_spec) # For individual clients
     federated_dataset_type = tff.type_at_clients(tf_dataset_type)
 
-    @tff.tf_computation(tf_dataset_type, server_message_type)
-    def client_update_fn(tf_dataset, server_message):
+
+    # Client updating logic
+    @tff.tf_computation(tf_dataset_type, server_message_type, client_state_type)
+    def client_update_fn(tf_dataset, server_message, client_state):
+
         model = model_fn()
         client_optimizer = client_optimizer_fn()
         
         # Note: update_client() is a tf function
         return fedavg_client.update_client(
-            model, tf_dataset, server_message, client_optimizer)
+            model, tf_dataset, server_message, client_state, client_optimizer)
 
+    
+    # One round of FedAvg logic
     @tff.federated_computation(tff.type_at_server(server_state_type),
+                               tff.type_at_clients(client_state_type),
                                federated_dataset_type)
-    def run_one_round(server_state, federated_dataset):
+    def run_one_round(server_state, client_states, federated_dataset):
         """Orchestration logic for one round of computation.
 
         Args:
@@ -206,9 +240,15 @@ def build_federated_averaging_process(
         # based on the server_state from previous round
         server_message = tff.federated_map(server_message_fn, server_state)
 
-        # Update the client with the new server_message and dataset
+        # Update the clients with the new server_message and dataset
         client_outputs = tff.federated_map(
-            client_update_fn, (federated_dataset, tff.federated_broadcast(server_message)))
+            client_update_fn,
+            (
+                federated_dataset,
+                tff.federated_broadcast(server_message),
+                client_states,
+            )
+        )
 
         round_model_delta = tff.federated_mean(
             client_outputs.weights_delta, weight=client_outputs.client_weight)
