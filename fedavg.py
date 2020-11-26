@@ -26,8 +26,6 @@ Communication-Efficient Learning of Deep Networks from Decentralized Data
     Seth Hampson, Blaise Aguera y Arcas. AISTATS 2017.
     https://arxiv.org/abs/1602.05629
 """
-import sys
-
 import tensorflow as tf
 import tensorflow_federated as tff
 import attr
@@ -161,20 +159,6 @@ def build_federated_averaging_process(
                 round_num=0)
 
         return initial_server_state
-        
-
-    @tff.tf_computation
-    def client_init_tf():
-        
-        # Assign some random id to each client to see how individual clients
-        # are performing their updates
-        client_temp_id = tf.random.uniform(shape=(), minval=0, maxval=sys.maxsize, dtype=tf.int64)
-        
-        initial_client_state = fedavg_client.ClientState(
-            anonymous_client_id=client_temp_id
-        )
-        
-        return initial_client_state
 
 
     # Type for server state
@@ -183,8 +167,13 @@ def build_federated_averaging_process(
     # Type for model weights
     model_weights_type = server_state_type.model_weights
     
+    
+    @tff.tf_computation
+    def get_dummy_client_state():
+        return fedavg_client.ClientState(client_serial=0)
+    
     # Type for client states
-    client_state_type = client_init_tf.type_signature.result
+    client_state_type = get_dummy_client_state.type_signature.result
 
 
     # Server updating logic
@@ -243,7 +232,7 @@ def build_federated_averaging_process(
         server_message = tff.federated_map(server_message_fn, server_state)
 
         # Update the clients with the new server_message and dataset
-        client_outputs = tff.federated_map(
+        client_outputs, new_client_state = tff.federated_map(
             client_update_fn,
             (
                 federated_dataset,
@@ -262,12 +251,14 @@ def build_federated_averaging_process(
         round_loss_metric = tff.federated_mean(
             client_outputs.model_output, weight=client_outputs.client_weight)
 
-        return server_state, round_loss_metric
+        return server_state, new_client_state, round_loss_metric
 
+    
     @tff.federated_computation
     def server_init_tff():
         """Orchestration logic for server model initialization."""
         return tff.federated_value(server_init_tf(), tff.SERVER)
+
 
     return tff.templates.IterativeProcess(
         initialize_fn=server_init_tff, next_fn=run_one_round)
