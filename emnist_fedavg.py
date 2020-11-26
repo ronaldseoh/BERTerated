@@ -200,6 +200,7 @@ def main(argv):
             accuracy = utils.keras_evaluate(model.keras_model, test_data, metric)
 
             print(f'Round {round_num} validation accuracy: {accuracy * 100.0}')
+            print()
 
 
 if __name__ == '__main__':
