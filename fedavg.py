@@ -26,6 +26,8 @@ Communication-Efficient Learning of Deep Networks from Decentralized Data
     Seth Hampson, Blaise Aguera y Arcas. AISTATS 2017.
     https://arxiv.org/abs/1602.05629
 """
+import sys
+
 import tensorflow as tf
 import tensorflow_federated as tff
 import attr
@@ -166,7 +168,7 @@ def build_federated_averaging_process(
         
         # Assign some random id to each client to see how individual clients
         # are performing their updates
-        client_temp_id = tf.random.uniform(shape=(), minval=0, maxval=30000000000, dtype=tf.int64)
+        client_temp_id = tf.random.uniform(shape=(), minval=0, maxval=sys.maxsize, dtype=tf.int64)
         
         initial_client_state = fedavg_client.ClientState(
             anonymous_client_id=client_temp_id
