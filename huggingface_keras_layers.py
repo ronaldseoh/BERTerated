@@ -31,12 +31,11 @@ import tensorflow as tf
 import transformers
 
 
-# Uplfted from
-# https://huggingface.co/transformers/_modules/transformers/modeling_tf_mobilebert.html#TFMobileBertPredictionHeadTransform
-# Mainly done to avoid using `config` in __init__()
 class StandaloneTFMobileBertPredictionHeadTransform(tf.keras.layers.Layer):
+
     def __init__(self, 
-                 hidden_size, hidden_act, initializer_range, layer_norm_eps, **kwargs):
+                 hidden_size, hidden_act, initializer_range, layer_norm_eps,
+                 **kwargs):
 
         super().__init__(**kwargs)
         
@@ -60,12 +59,17 @@ class StandaloneTFMobileBertPredictionHeadTransform(tf.keras.layers.Layer):
             self.hidden_size, epsilon=self.layer_norm_eps, name="LayerNorm")
 
     def call(self, hidden_states):
+
         hidden_states = self.dense(hidden_states)
+
         hidden_states = self.transform_act_fn(hidden_states)
+
         hidden_states = self.LayerNorm(hidden_states)
+
         return hidden_states
         
     def get_config(self):
+
         return {
             "hidden_size": self.hidden_size,
             "hidden_act" : self.hidden_act,
@@ -75,9 +79,12 @@ class StandaloneTFMobileBertPredictionHeadTransform(tf.keras.layers.Layer):
 
 
 class StandaloneTFMobileBertLMPredictionHead(tf.keras.layers.Layer):
+
     def __init__(self,
                  hidden_size, hidden_act, initializer_range, layer_norm_eps,
-                 vocab_size, embedding_size, **kwargs):
+                 vocab_size, embedding_size,
+                 **kwargs):
+
         super().__init__(**kwargs)
         
         # Let's store all the inputs first
@@ -89,10 +96,20 @@ class StandaloneTFMobileBertLMPredictionHead(tf.keras.layers.Layer):
         self.embedding_size = embedding_size
         
         self.transform = StandaloneTFMobileBertPredictionHeadTransform(
-            self.hidden_size, self.hidden_act, self.initializer_range, self.layer_norm_eps, name="transform")
+            self.hidden_size,
+            self.hidden_act,
+            self.initializer_range,
+            self.layer_norm_eps,
+            name="transform"
+        )
 
     def build(self, input_shape):
-        self.bias = self.add_weight(shape=(self.vocab_size,), initializer="zeros", trainable=True, name="bias")
+
+        self.bias = self.add_weight(
+            shape=(self.vocab_size,),
+            initializer="zeros",
+            trainable=True,
+            name="bias")
 
         self.dense = self.add_weight(
             shape=(self.hidden_size - self.embedding_size, self.vocab_size),
@@ -111,12 +128,17 @@ class StandaloneTFMobileBertLMPredictionHead(tf.keras.layers.Layer):
         super().build(input_shape)
 
     def call(self, hidden_states):
+
         hidden_states = self.transform(hidden_states)
+
         hidden_states = tf.matmul(hidden_states, tf.concat([tf.transpose(self.decoder), self.dense], axis=0))
+
         hidden_states = hidden_states + self.bias
+
         return hidden_states
         
     def get_config(self):
+
         return {
             "hidden_size": self.hidden_size,
             "hidden_act" : self.hidden_act,
@@ -128,9 +150,11 @@ class StandaloneTFMobileBertLMPredictionHead(tf.keras.layers.Layer):
 
 
 class StandaloneTFMobileBertMLMHead(tf.keras.layers.Layer):
+
     def __init__(self,
                  hidden_size, hidden_act, initializer_range, layer_norm_eps,
-                 vocab_size, embedding_size,**kwargs):
+                 vocab_size, embedding_size,
+                 **kwargs):
 
         super().__init__(**kwargs)
         
@@ -147,10 +171,13 @@ class StandaloneTFMobileBertMLMHead(tf.keras.layers.Layer):
             self.vocab_size, self.embedding_size, name="predictions")
 
     def call(self, sequence_output):
+ 
         prediction_scores = self.predictions(sequence_output)
+ 
         return prediction_scores
 
     def get_config(self):
+ 
         return {
             "hidden_size": self.hidden_size,
             "hidden_act" : self.hidden_act,
