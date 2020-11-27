@@ -56,22 +56,8 @@ class ClientOutput(object):
 class ClientState(object):
     
     client_serial = attr.ib()
+    visit_count = attr.ib()
 
-
-def initialize_client_state(client_serial=None):
-    
-    # Assign some random id to each client to see how individual clients
-    # are performing their updates
-    if client_serial:
-        client_serial = client_serial
-    else:
-        client_serial = np.random.randint(0, sys.maxsize)
-    
-    initial_client_state = ClientState(
-        client_serial=client_serial
-    )
-    
-    return initial_client_state
 
 @tf.function
 def update_client(model, dataset, server_message, client_state, client_optimizer):
@@ -135,9 +121,12 @@ def update_client(model, dataset, server_message, client_state, client_optimizer
 
     # Divided the update by the batch size
     client_weight = tf.cast(num_examples, tf.float32)
+    
+    # ClientState update
+    new_client_state = ClientState(client_serial=client_state.client_serial, visit_count=client_state.visit_count + 1)
 
     if num_examples == 0:
         # Don't divide by 0
-        return ClientOutput(weights_delta, client_weight, loss_sum), ClientState(client_serial=client_state.client_serial)
+        return ClientOutput(weights_delta, client_weight, loss_sum), new_client_state
     else:
-        return ClientOutput(weights_delta, client_weight, loss_sum / client_weight), ClientState(client_serial=client_state.client_serial)
+        return ClientOutput(weights_delta, client_weight, loss_sum / client_weight), new_client_state
