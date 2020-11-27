@@ -31,34 +31,57 @@ ModelOutputs = collections.namedtuple('ModelOutputs', 'loss')
 class KerasModelWrapper(object):
     """A standalone keras wrapper to be used in TFF."""
 
-    def __init__(self, keras_model, input_spec, loss):
-      """A wrapper class that provides necessary API handles for TFF.
+    def __init__(self, keras_model, input_spec, loss,
+                 tf_device_identifier=None):
+        """A wrapper class that provides necessary API handles for TFF.
 
-      Args:
-        keras_model: A `tf.keras.Model` to be trained.
-        input_spec: Metadata of dataset that desribes the input tensors, which
-          will be converted to `tff.Type` specifying the expected type of input
-          and output of the model.
-        loss: A `tf.keras.losses.Loss` instance to be used for training.
-      """
-      self.keras_model = keras_model
-      self.input_spec = input_spec
-      self.loss = loss
+        Args:
+          keras_model: A `tf.keras.Model` to be trained.
+          input_spec: Metadata of dataset that desribes the input tensors, which
+            will be converted to `tff.Type` specifying the expected type of input
+            and output of the model.
+          loss: A `tf.keras.losses.Loss` instance to be used for training.
+        """
+        
+        self.tf_device_identifier = tf_device_identifier
+        
+        if self.tf_device_identifier is not None:
+            with tf.device(self.tf_device_identifier):
+                self.keras_model = keras_model
+                self.loss = loss
+        else:
+            self.keras_model = keras_model
+            self.loss = loss
+
+        self.input_spec = input_spec
 
     def forward_pass(self, batch_input, training=True):
-      """Forward pass of the model to get loss for a batch of data.
+        """Forward pass of the model to get loss for a batch of data.
 
-      Args:
-        batch_input: A `collections.abc.Mapping` with two keys, `x` for inputs and
-          `y` for labels.
-        training: Boolean scalar indicating training or inference mode.
+        Args:
+          batch_input: A tuple, the first element containing inputs and
+            the second one for labels.
+          training: Boolean scalar indicating training or inference mode.
 
-      Returns:
-        A scalar tf.float32 `tf.Tensor` loss for current batch input.
-      """
-      preds = self.keras_model(batch_input[0], training=training)
-      loss = self.loss(batch_input[1], preds)
-      return ModelOutputs(loss=loss)
+        Returns:
+          A scalar tf.float32 `tf.Tensor` loss for current batch input.
+        """
+        
+        if self.tf_device_identifier is not None:
+
+            with tf.device(self.tf_device_identifier):
+                preds = self.keras_model(batch_input[0], training=training)
+
+                loss = self.loss(batch_input[1], preds)
+
+                return ModelOutputs(loss=loss)
+        else:
+
+            preds = self.keras_model(batch_input[0], training=training)
+
+            loss = self.loss(batch_input[1], preds)
+
+            return ModelOutputs(loss=loss)
 
     @property
     def weights(self):
@@ -67,9 +90,13 @@ class KerasModelWrapper(object):
             non_trainable=self.keras_model.non_trainable_variables)
 
     def from_weights(self, model_weights):
-        tff.utils.assign(self.keras_model.trainable_variables, 
+        # Update weights
+        tff.utils.assign(
+            self.keras_model.trainable_variables, 
             list(model_weights.trainable))
-        tff.utils.assign(self.keras_model.non_trainable_variables,
+
+        tff.utils.assign(
+            self.keras_model.non_trainable_variables,
             list(model_weights.non_trainable))
 
 
@@ -99,12 +126,19 @@ def initialize_optimizer_vars(model, optimizer):
     assert optimizer.variables()
 
 
-def keras_evaluate(model, test_data, metric):
+def keras_evaluate(model, test_data, metric,
+                   tf_device_identifier=None):
     metric.reset_states()
 
-    for batch in test_data:
-        preds = model(batch[0], training=False)
-        metric.update_state(y_true=batch[1], y_pred=preds)
+    if tf_device_identifier is not None:
+        with tf.device(tf_device_identifier):
+            for batch in test_data:
+                preds = model(batch[0], training=False)
+                metric.update_state(y_true=batch[1], y_pred=preds)
+    else:
+        for batch in test_data:
+            preds = model(batch[0], training=False)
+            metric.update_state(y_true=batch[1], y_pred=preds)
 
     return metric.result()
 
@@ -122,7 +156,8 @@ def calculate_masked_lm_cross_entropy(y_true, y_pred):
 
     return loss
 
-def convert_huggingface_mlm_to_keras(huggingface_model, max_seq_length, use_pretrained_mlm_weights=False):
+def convert_huggingface_mlm_to_keras(huggingface_model, max_seq_length,
+                                     use_pretrained_mlm_weights=False):
 
     input_ids = tf.keras.Input(
         shape=[max_seq_length], dtype=tf.int32)
