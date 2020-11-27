@@ -14,11 +14,12 @@
 # limitations under the License.
 """An implementation of the Federated Averaging algorithm.
 
-This code is largely based on the `simple_fedavg` implementation from TensorFlow Federated,
-although with slightly different code organization and additional functionalities for experimentation.
+This code is largely based on the `simple_fedavg` implementation
+from TensorFlow Federated, with slightly different code structure
+and additional functionalities for experimentation.
 
-fedavg.py: Logics for the server side of the Federated Averaging algorithm. See fedavg_client.py for
-the ciient-side logic.
+fedavg.py: Logics for the server side of the FedAvg algorithm.
+See fedavg_client.py for the ciient-side logic.
 """
 import tensorflow as tf
 import tensorflow_federated as tff
