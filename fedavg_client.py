@@ -111,16 +111,16 @@ def update_client(model, dataset, server_message, client_state, client_optimizer
         tf.print("Anonymous client", client_state.client_serial, ": batch", batch_count, ",", num_examples, "examples processed")
 
         loss_sum += outputs.loss * tf.cast(batch_size, tf.float32)
-        
-    tf.print("Anonymous client", client_state.client_serial, ": training finished.", num_examples, " examples processed, loss:", loss_sum)
+ 
+    # Divided the update by the batch size
+    client_weight = tf.cast(num_examples, tf.float32)
+
+    tf.print("Anonymous client", client_state.client_serial, ": training finished.", num_examples, " examples processed, loss:", loss_sum / client_weight)
 
     # Compare the weight values with the one from server message
     weights_delta = tf.nest.map_structure(lambda a, b: a - b,
                                           model.weights.trainable,
                                           server_message.model_weights.trainable)
-
-    # Divided the update by the batch size
-    client_weight = tf.cast(num_examples, tf.float32)
     
     # ClientState update
     new_client_state = ClientState(client_serial=client_state.client_serial, visit_count=client_state.visit_count + 1)
