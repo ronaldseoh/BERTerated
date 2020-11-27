@@ -47,7 +47,7 @@ class ClientOutput(object):
     model_output = attr.ib()
 
 
-@attr.s(eq=False, frozen=True, slots=True)
+@attr.s(eq=False, frozen=False, slots=True)
 class ClientState(object):
     
     client_serial = attr.ib()
@@ -129,7 +129,7 @@ def update_client(model, dataset, server_message, client_state, client_optimizer
     # New ClientOutput
     if num_examples == 0:
         # If this client had no data at all, don't divide the loss function by 0
-        # and avoid nan
+        # to prevent sending in a null value.
         new_client_output = ClientOutput(
             weights_delta, client_weight, loss_sum)
     else:
