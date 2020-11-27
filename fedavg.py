@@ -161,14 +161,15 @@ def build_federated_averaging_process(
     client_state_type = get_dummy_client_state.type_signature.result
 
 
-    # Server updating logic
+    # Server update
     @tff.tf_computation(server_state_type, model_weights_type.trainable)
     def server_update_fn(server_state, model_delta):
         model = model_fn()
         server_optimizer = server_optimizer_fn()
         utils.initialize_optimizer_vars(model, server_optimizer)
 
-        return update_server(model, server_optimizer, server_state, model_delta)
+        return update_server(
+            model, server_optimizer, server_state, model_delta)
 
 
     # Server messages generation
@@ -187,19 +188,16 @@ def build_federated_averaging_process(
     federated_dataset_type = tff.type_at_clients(tf_dataset_type)
 
 
-    # Client updating logic
+    # Client update
     @tff.tf_computation(tf_dataset_type, server_message_type, client_state_type)
     def client_update_fn(tf_dataset, server_message, client_state):
-
-        model = model_fn()
-        client_optimizer = client_optimizer_fn()
-        
         # Note: update_client() is a tf function
         return fedavg_client.update_client(
-            model, tf_dataset, server_message, client_state, client_optimizer)
+            model_fn(), tf_dataset, server_message,
+            client_state, client_optimizer_fn())
 
     
-    # One round of FedAvg logic
+    # One round of FedAvg
     @tff.federated_computation(tff.type_at_server(server_state_type),
                                tff.type_at_clients(client_state_type),
                                federated_dataset_type)
