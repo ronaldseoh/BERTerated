@@ -15,7 +15,7 @@
 """Simple FedAvg to train EMNIST.
 
 This is the modified version of the script included in the original simple_fedavg implementation from TFF.
-This uses a much smaller CNN model than BERT. We use this to test out our changes in our version of FedAvg.
+A much smaller CNN model than BERT is used. We use this to test out the changes in our version of FedAvg.
 """
 
 import collections
