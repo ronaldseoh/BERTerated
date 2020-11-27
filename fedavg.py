@@ -28,6 +28,7 @@ import numpy as np
 import fedavg_client
 import utils
 
+
 @attr.s(eq=False, frozen=True, slots=True)
 class ServerState(object):
     """Structure for state on the server.
@@ -55,25 +56,6 @@ class BroadcastMessage(object):
     """
     model_weights = attr.ib()
     round_num = attr.ib()
-
-
-@tf.function
-def build_server_broadcast_message(server_state):
-    """Builds `BroadcastMessage` for broadcasting.
-
-    This method can be used to post-process `ServerState` before broadcasting.
-    For example, perform model compression on `ServerState` to obtain a compressed
-    state that is sent in a `BroadcastMessage`.
-
-    Args:
-      server_state: A `ServerState`.
-
-    Returns:
-      A `BroadcastMessage`.
-    """
-    return BroadcastMessage(
-        model_weights=server_state.model_weights,
-        round_num=server_state.round_num)
 
 
 @tf.function
@@ -156,6 +138,12 @@ def build_federated_averaging_process(
         return initial_server_state
 
 
+    @tff.federated_computation
+    def server_init_tff():
+        """Orchestration logic for server model initialization."""
+        return tff.federated_value(server_init_tf(), tff.SERVER)
+
+
     # Type for server state
     server_state_type = server_init_tf.type_signature.result
     
@@ -185,7 +173,9 @@ def build_federated_averaging_process(
     # Server messages generation
     @tff.tf_computation(server_state_type)
     def server_message_fn(server_state):
-        return build_server_broadcast_message(server_state)
+        return BroadcastMessage(
+            model_weights=server_state.model_weights,
+            round_num=server_state.round_num)
 
 
     # Type for server messages (to clients)
@@ -248,12 +238,6 @@ def build_federated_averaging_process(
             client_outputs.model_output, weight=client_outputs.client_weight)
 
         return server_state, new_client_state, round_loss_metric
-
-    
-    @tff.federated_computation
-    def server_init_tff():
-        """Orchestration logic for server model initialization."""
-        return tff.federated_value(server_init_tf(), tff.SERVER)
 
 
     return tff.templates.IterativeProcess(
