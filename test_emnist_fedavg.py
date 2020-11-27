@@ -160,7 +160,7 @@ def main(argv):
     
     # Initialize client states for all clients
     for i, client_id in enumerate(train_data.client_ids):
-        client_states[client_id] = fedavg_client.initialize_client_state(client_serial=i)
+        client_states[client_id] = fedavg_client.ClientState(client_serial=i, visit_count=0)
 
     metric = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
 
@@ -185,6 +185,7 @@ def main(argv):
             server_state, sampled_client_states, sampled_train_data)
 
         print(f'Round {round_num} training loss: {train_metrics}')
+        print()
         
         # Update client states
         print("Updating client states.")
