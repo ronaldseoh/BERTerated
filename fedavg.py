@@ -155,10 +155,10 @@ def build_federated_averaging_process(
     # Type for client states
     # Using this dummy function to obtain type signatures from it
     @tff.tf_computation
-    def get_dummy_client_state():
-        return fedavg_client.ClientState(client_serial=0, visit_count=0)
+    def __dummy_get_client_state():
+        return fedavg_client.ClientState(client_serial=0, num_processed=0)
 
-    client_state_type = get_dummy_client_state.type_signature.result
+    client_state_type = __dummy_get_client_state.type_signature.result
 
 
     # Server update

@@ -162,7 +162,7 @@ def main(argv):
     
     # Initialize client states for all clients
     for i, client_id in enumerate(train_data.client_ids):
-        client_states[client_id] = fedavg_client.ClientState(client_serial=i, visit_count=0)
+        client_states[client_id] = fedavg_client.ClientState(client_serial=i, num_processed=0)
 
     metric = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
 

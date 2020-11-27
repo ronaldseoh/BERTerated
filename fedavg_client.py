@@ -51,7 +51,7 @@ class ClientOutput(object):
 class ClientState(object):
     
     client_serial = attr.ib()
-    visit_count = attr.ib()
+    num_processed = attr.ib()
 
 
 @tf.function
@@ -140,7 +140,7 @@ def update_client(model, dataset, server_message, client_state, client_optimizer
     # ClientState update
     new_client_state = ClientState(
         client_serial=client_state.client_serial,
-        visit_count=client_state.visit_count + 1,
+        num_processed=client_state.num_processed + num_examples,
     )
 
     return new_client_output, new_client_state
