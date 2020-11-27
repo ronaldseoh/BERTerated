@@ -14,11 +14,12 @@
 # limitations under the License.
 """An implementation of the Federated Averaging algorithm.
 
-This code is largely based on the `simple_fedavg` implementation from TensorFlow Federated,
-although with slightly different code organization and additional functionalities for experimentation.
+This code is largely based on the `simple_fedavg` implementation
+from TensorFlow Federated, with slightly different code structure
+and additional functionalities for experimentation.
 
-fedavg_client.py: Logics for the client side of the Federated Averaging algorithm. See fedavg.py for
-the server-side logic.
+fedavg_client.py: Logics for the client side of the FedAvg algorithm.
+See fedavg.py for the server-side logic.
 """
 import sys
 
@@ -46,7 +47,7 @@ class ClientOutput(object):
     model_output = attr.ib()
 
 
-@attr.s
+@attr.s(eq=False, frozen=True, slots=True)
 class ClientState(object):
     
     client_serial = attr.ib()
@@ -68,12 +69,16 @@ def update_client(model, dataset, server_message, client_state, client_optimizer
     """
 
     # Apply the new version of model from server
-    tf.print("Anonymous client", client_state.client_serial, ": updated the model with server message.")
+    tf.print(
+        "Anonymous client", client_state.client_serial,
+        ": updated the model with server message.")
 
     tff.utils.assign(model.weights, server_message.model_weights)
 
     # Start the training on the client side.
-    tf.print("Anonymous client", client_state.client_serial, ": training start.")
+    tf.print(
+        "Anonymous client", client_state.client_serial,
+        ": training start.")
 
     # Total number of data points processed by
     # this client's optimizer
@@ -102,19 +107,35 @@ def update_client(model, dataset, server_message, client_state, client_optimizer
 
         num_examples += batch_size
         
-        tf.print("Anonymous client", client_state.client_serial, ": batch", batch_count, ",", num_examples, "examples processed")
+        tf.print(
+            "Anonymous client", client_state.client_serial,
+            ": batch", batch_count, ",", num_examples, "examples processed")
 
         loss_sum += outputs.loss * tf.cast(batch_size, tf.float32)
  
     # Divided the update by the batch size
     client_weight = tf.cast(num_examples, tf.float32)
 
-    tf.print("Anonymous client", client_state.client_serial, ": training finished.", num_examples, " examples processed, loss:", loss_sum / client_weight)
+    tf.print(
+        "Anonymous client", client_state.client_serial,
+        ": training finished.",
+        num_examples, " examples processed, loss:", loss_sum / client_weight)
 
     # Compare the weight values with the one from server message
     weights_delta = tf.nest.map_structure(lambda a, b: a - b,
                                           model.weights.trainable,
                                           server_message.model_weights.trainable)
+    
+    # New ClientOutput
+    if num_examples == 0:
+        # If this client had no data at all, don't divide the loss function by 0
+        # and avoid nan
+        new_client_output = ClientOutput(
+            weights_delta, client_weight, loss_sum)
+    else:
+        new_client_output = ClientOutput(
+            weights_delta, client_weight, loss_sum / client_weight)
+
     
     # ClientState update
     new_client_state = ClientState(
@@ -122,8 +143,4 @@ def update_client(model, dataset, server_message, client_state, client_optimizer
         visit_count=client_state.visit_count + 1,
     )
 
-    if num_examples == 0:
-        # Don't divide by 0
-        return ClientOutput(weights_delta, client_weight, loss_sum), new_client_state
-    else:
-        return ClientOutput(weights_delta, client_weight, loss_sum / client_weight), new_client_state
+    return new_client_output, new_client_state
