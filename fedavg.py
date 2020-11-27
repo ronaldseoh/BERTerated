@@ -14,17 +14,11 @@
 # limitations under the License.
 """An implementation of the Federated Averaging algorithm.
 
-This is intended to be a minimal stand-alone implementation of Federated
-Averaging, suitable for branching as a starting point for algorithm
-modifications; see `tff.learning.build_federated_averaging_process` for a
-more full-featured implementation.
+This code is largely based on the `simple_fedavg` implementation from TensorFlow Federated,
+although with slightly different code organization and additional functionalities for experimentation.
 
-Based on the paper:
-
-Communication-Efficient Learning of Deep Networks from Decentralized Data
-    H. Brendan McMahan, Eider Moore, Daniel Ramage,
-    Seth Hampson, Blaise Aguera y Arcas. AISTATS 2017.
-    https://arxiv.org/abs/1602.05629
+fedavg.py: Logics for the server side of the Federated Averaging algorithm. See fedavg_client.py for
+the ciient-side logic.
 """
 import tensorflow as tf
 import tensorflow_federated as tff

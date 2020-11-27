@@ -14,6 +14,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Backported Keras Layers from the HuggingFace library. 
+
+TFF currently do not support Keras subclass models. Hence we take the individual layers within
+the original Huggingface models and put them together again as a Keras functional model.
+However, apart from the layers decorated with @keras_serializable (mostly the main layer part),
+the head layers cannot be directly imported as they use their own config object to initialize
+each layers.
+
+Probably not the best solution, but for now we've decided to backport the relevant Keras layer
+classes from Huggingface here and make them Keras serializable by directly feeding in relevant
+parameters to the __init__().
+
+"""
 import tensorflow as tf
 import transformers
 

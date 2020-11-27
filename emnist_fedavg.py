@@ -14,8 +14,8 @@
 # limitations under the License.
 """Simple FedAvg to train EMNIST.
 
-This is intended to be a minimal stand-alone experiment script built on top of
-core TFF.
+This is the modified version of the script included in the original simple_fedavg implementation from TFF.
+This uses a much smaller CNN model than BERT. We use this to test out our changes in our version of FedAvg.
 """
 
 import collections

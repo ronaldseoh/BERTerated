@@ -14,17 +14,11 @@
 # limitations under the License.
 """An implementation of the Federated Averaging algorithm.
 
-This is intended to be a minimal stand-alone implementation of Federated
-Averaging, suitable for branching as a starting point for algorithm
-modifications; see `tff.learning.build_federated_averaging_process` for a
-more full-featured implementation.
+This code is largely based on the `simple_fedavg` implementation from TensorFlow Federated,
+although with slightly different code organization and additional functionalities for experimentation.
 
-Based on the paper:
-
-Communication-Efficient Learning of Deep Networks from Decentralized Data
-    H. Brendan McMahan, Eider Moore, Daniel Ramage,
-    Seth Hampson, Blaise Aguera y Arcas. AISTATS 2017.
-    https://arxiv.org/abs/1602.05629
+fedavg_client.py: Logics for the client side of the Federated Averaging algorithm. See fedavg.py for
+the server-side logic.
 """
 import sys
 
@@ -123,7 +117,10 @@ def update_client(model, dataset, server_message, client_state, client_optimizer
                                           server_message.model_weights.trainable)
     
     # ClientState update
-    new_client_state = ClientState(client_serial=client_state.client_serial, visit_count=client_state.visit_count + 1)
+    new_client_state = ClientState(
+        client_serial=client_state.client_serial,
+        visit_count=client_state.visit_count + 1,
+    )
 
     if num_examples == 0:
         # Don't divide by 0
