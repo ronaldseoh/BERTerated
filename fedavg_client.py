@@ -142,6 +142,7 @@ def update_client(model, dataset, server_message, client_state, client_optimizer
     new_client_state = ClientState(
         client_serial=client_state.client_serial,
         num_processed=client_state.num_processed + num_examples,
+        optimizer_options=client_state.optimizer_options,
     )
 
     return new_client_output, new_client_state
