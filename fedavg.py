@@ -58,6 +58,19 @@ class BroadcastMessage(object):
     model_weights = attr.ib()
     round_num = attr.ib()
 
+@attr.s(eq=False, frozen=True, slots=True)
+class OptimizerOptions(object):
+
+    init_lr = attr.ib()
+    num_train_steps = attr.ib()
+    num_warmup_steps = attr.ib()
+    min_lr_ratio = attr.ib()
+    adam_beta1 = attr.ib()
+    adam_beta2 = attr.ib()
+    adam_epsilon = attr.ib()
+    weight_decay_rate = attr.ib()
+    power = attr.ib()
+
 
 @tf.function
 def update_server(model, server_optimizer, server_state, weights_delta):
@@ -156,7 +169,21 @@ def build_federated_averaging_process(
     # Using this dummy function to obtain type signatures from it
     @tff.tf_computation
     def __dummy_get_client_state():
-        return fedavg_client.ClientState(client_serial=0, num_processed=0)
+        
+        dummy_optimizer_options = OptimizerOptions(
+            init_lr=0.01,
+            num_train_steps=10000,
+            num_warmup_steps=500,
+            min_lr_ratio=0.0,
+            adam_beta1=0.99,
+            adam_beta2=0.999,
+            adam_epsilon=1e-7,
+            weight_decay_rate=0.01,
+            power=1
+        )
+
+        return fedavg_client.ClientState(
+            client_serial=0, num_processed=0, optimizer_options=dummy_optimizer_options)
 
     client_state_type = __dummy_get_client_state.type_signature.result
 
@@ -191,10 +218,13 @@ def build_federated_averaging_process(
     # Client update
     @tff.tf_computation(tf_dataset_type, server_message_type, client_state_type)
     def client_update_fn(tf_dataset, server_message, client_state):
-        # Note: update_client() is a tf function
+        
+        client_optimizer = client_optimizer_fn(client_state.optimizer_options)
+
+        # Note: update_client() is a tf function        
         return fedavg_client.update_client(
             model_fn(), tf_dataset, server_message,
-            client_state, client_optimizer_fn())
+            client_state, client_optimizer)
 
     
     # One round of FedAvg
