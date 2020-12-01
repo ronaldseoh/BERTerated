@@ -27,6 +27,7 @@ from absl import flags
 import numpy as np
 import tensorflow as tf
 import tensorflow_federated as tff
+import transformers
 
 import fedavg
 import fedavg_client
@@ -129,9 +130,42 @@ def create_original_fedavg_cnn_model(only_digits=True):
 def server_optimizer_fn():
     return tf.keras.optimizers.SGD(learning_rate=FLAGS.server_learning_rate)
 
+@tf.function
+def client_optimizer_fn(optimizer_options=None):
 
-def client_optimizer_fn():
-    return tf.keras.optimizers.SGD(learning_rate=FLAGS.client_learning_rate)
+    if optimizer_options is not None:
+        lr_schedule = tf.keras.optimizers.schedules.PolynomialDecay(
+            initial_learning_rate=optimizer_options.init_lr,
+            decay_steps=optimizer_options.num_train_steps - optimizer_options.num_warmup_steps,
+            end_learning_rate=optimizer_options.init_lr * optimizer_options.min_lr_ratio,
+            power=optimizer_options.power,
+        )
+        
+        if optimizer_options.num_warmup_steps is not None:
+            lr_schedule = transformers.optimization_tf.WarmUp(
+                initial_learning_rate=optimizer_options.init_lr,
+                decay_schedule_fn=lr_schedule,
+                warmup_steps=optimizer_options.num_warmup_steps,
+            )
+
+        if optimizer_options.weight_decay_rate > 0.0:
+            optimizer = transformers.optimization_tf.AdamWeightDecay(
+                learning_rate=lr_schedule,
+                weight_decay_rate=optimizer_options.weight_decay_rate,
+                beta_1=optimizer_options.adam_beta1,
+                beta_2=optimizer_options.adam_beta2,
+                epsilon=optimizer_options.adam_epsilon,
+                exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"],
+                include_in_weight_decay=None,
+            )
+        else:
+            optimizer = tf.keras.optimizers.Adam(
+                learning_rate=lr_schedule, beta_1=optimizer_options.adam_beta1, beta_2=optimizer_options.adam_beta2, epsilon=optimizer_options.adam_epsilon
+            )
+            
+        return optimizer
+    else:
+        return tf.keras.optimizers.Adam(learning_rate=FLAGS.client_learning_rate)
 
 
 def main(argv):
@@ -162,7 +196,22 @@ def main(argv):
     
     # Initialize client states for all clients
     for i, client_id in enumerate(train_data.client_ids):
-        client_states[client_id] = fedavg_client.ClientState(client_serial=i, num_processed=0)
+        client_optimizer_options = fedavg.OptimizerOptions(
+            init_lr=0.01,
+            num_train_steps=10000,
+            num_warmup_steps=500,
+            min_lr_ratio=0.0,
+            adam_beta1=0.99,
+            adam_beta2=0.999,
+            adam_epsilon=1e-7,
+            weight_decay_rate=0.01,
+            power=1
+        )
+
+        client_states[client_id] = fedavg_client.ClientState(
+            client_serial=i,
+            num_processed=0,
+            optimizer_options=client_optimizer_options)
 
     metric = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
 
