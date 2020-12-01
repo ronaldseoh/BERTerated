@@ -130,42 +130,22 @@ def create_original_fedavg_cnn_model(only_digits=True):
 def server_optimizer_fn():
     return tf.keras.optimizers.SGD(learning_rate=FLAGS.server_learning_rate)
 
-@tf.function
 def client_optimizer_fn(optimizer_options=None):
-
-    if optimizer_options is not None:
-        lr_schedule = tf.keras.optimizers.schedules.PolynomialDecay(
-            initial_learning_rate=optimizer_options.init_lr,
-            decay_steps=optimizer_options.num_train_steps - optimizer_options.num_warmup_steps,
-            end_learning_rate=optimizer_options.init_lr * optimizer_options.min_lr_ratio,
-            power=optimizer_options.power,
-        )
+          
+    # Declare the optimizer object first
+    optimizer = transformers.AdamWeightDecay(learning_rate=FLAGS.client_learning_rate)
         
-        if optimizer_options.num_warmup_steps is not None:
-            lr_schedule = transformers.optimization_tf.WarmUp(
-                initial_learning_rate=optimizer_options.init_lr,
-                decay_schedule_fn=lr_schedule,
-                warmup_steps=optimizer_options.num_warmup_steps,
-            )
-
-        if optimizer_options.weight_decay_rate > 0.0:
-            optimizer = transformers.optimization_tf.AdamWeightDecay(
-                learning_rate=lr_schedule,
-                weight_decay_rate=optimizer_options.weight_decay_rate,
-                beta_1=optimizer_options.adam_beta1,
-                beta_2=optimizer_options.adam_beta2,
-                epsilon=optimizer_options.adam_epsilon,
-                exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"],
-                include_in_weight_decay=None,
-            )
-        else:
-            optimizer = tf.keras.optimizers.Adam(
-                learning_rate=lr_schedule, beta_1=optimizer_options.adam_beta1, beta_2=optimizer_options.adam_beta2, epsilon=optimizer_options.adam_epsilon
-            )
-            
-        return optimizer
-    else:
-        return tf.keras.optimizers.Adam(learning_rate=FLAGS.client_learning_rate)
+    # Then start changing its parameters
+    
+    # Do something about the learning rate schedule here
+    
+    # Update other parameters
+    optimizer.beta_1 = optimizer_options.adam_beta1
+    optimizer.beta_2 = optimizer_options.adam_beta2
+    optimizer.epsilon = optimizer_options.adam_epsilon
+    #optimizer.weight_decay_rate = optimizer_options.weight_decay_rate
+    
+    return optimizer
 
 
 def main(argv):
@@ -205,7 +185,6 @@ def main(argv):
             adam_beta2=0.999,
             adam_epsilon=1e-7,
             weight_decay_rate=0.01,
-            power=1
         )
 
         client_states[client_id] = fedavg_client.ClientState(
