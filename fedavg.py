@@ -69,7 +69,6 @@ class OptimizerOptions(object):
     adam_beta2 = attr.ib()
     adam_epsilon = attr.ib()
     weight_decay_rate = attr.ib()
-    power = attr.ib()
 
 
 @tf.function
@@ -179,7 +178,6 @@ def build_federated_averaging_process(
             adam_beta2=0.999,
             adam_epsilon=1e-7,
             weight_decay_rate=0.01,
-            power=1
         )
 
         return fedavg_client.ClientState(
