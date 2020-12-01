@@ -52,6 +52,7 @@ class ClientState(object):
     
     client_serial = attr.ib()
     num_processed = attr.ib()
+    optimizer_options = attr.ib()
 
 
 @tf.function
