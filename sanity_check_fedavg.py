@@ -153,6 +153,11 @@ def client_optimizer_fn(optimizer_options=None):
     )
     
     # Add warmup steps to the start of lr_schedule
+    lr_schedule = transformers.WarmUp(
+        initial_learning_rate=optimizer_options.init_lr,
+        decay_schedule_fn=lr_schedule,
+        warmup_steps=tf.cast(optimizer_options.num_warmup_steps, dtype=tf.float32),
+    )
 
     # Apply the parameters to optimizer
     optimizer.learning_rate = lr_schedule
