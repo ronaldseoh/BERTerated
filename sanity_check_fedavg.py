@@ -135,29 +135,31 @@ def server_optimizer_fn():
 def client_optimizer_fn(optimizer_options=None):
           
     # Declare the optimizer object first
-    optimizer = transformers.AdamWeightDecay(
+    optimizer = utils.AdamWeightDecay(
         learning_rate=FLAGS.client_learning_rate,
-        exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"]
+        exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"],
+        weight_decay_rate=optimizer_options.weight_decay_rate
     )
         
     # Then start changing its parameters
     
-    # Do something about the learning rate schedule here
+    # Learning rate schedule
+    # Linear Decay
     lr_schedule = tf.keras.optimizers.schedules.PolynomialDecay(
         initial_learning_rate=optimizer_options.init_lr,
         decay_steps=optimizer_options.num_train_steps - optimizer_options.num_warmup_steps,
         end_learning_rate=optimizer_options.init_lr * optimizer_options.min_lr_ratio,
         power=1
     )
-
-    optimizer.learning_rate = lr_schedule
     
-    # Update other parameters
+    # Add warmup steps to the start of lr_schedule
+
+    # Apply the parameters to optimizer
+    optimizer.learning_rate = lr_schedule
     optimizer.beta_1 = optimizer_options.adam_beta1
     optimizer.beta_2 = optimizer_options.adam_beta2
     optimizer.epsilon = optimizer_options.adam_epsilon
-    #optimizer.weight_decay_rate = int(optimizer_options.weight_decay_rate)
-    
+
     return optimizer
 
 

@@ -20,6 +20,7 @@ import time
 
 import tensorflow as tf
 import tensorflow_federated as tff
+import transformers
 import attr
 
 import huggingface_keras_layers
@@ -118,6 +119,15 @@ class MaskedLMCrossEntropy(tf.keras.losses.Loss):
 
     def call(self, y_true, y_pred):
         return calculate_masked_lm_cross_entropy(y_true, y_pred)
+        
+
+class AdamWeightDecay(transformers.AdamWeightDecay):
+    
+    def _prepare_local(self, var_device, var_dtype, apply_state):
+        super(transformers.AdamWeightDecay, self)._prepare_local(var_device, var_dtype, apply_state)
+        apply_state[(var_device, var_dtype)]["weight_decay_rate"] = tf.identity(
+            self.weight_decay_rate, name="adam_weight_decay_rate"
+        )
 
 
 def initialize_optimizer_vars(model, optimizer):
