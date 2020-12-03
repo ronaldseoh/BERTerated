@@ -20,6 +20,7 @@ import time
 
 import tensorflow as tf
 import tensorflow_federated as tff
+import attr
 
 import huggingface_keras_layers
 
@@ -100,7 +101,7 @@ class KerasModelWrapper(object):
             list(model_weights.non_trainable))
 
 
-@attr.s(eq=False, frozen=True, slots=True)
+@attr.s(eq=False, frozen=False, slots=True)
 class OptimizerOptions(object):
 
     init_lr = attr.ib()
