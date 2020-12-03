@@ -157,7 +157,7 @@ def build_federated_averaging_process(
     @tff.tf_computation
     def __dummy_get_client_state():
         
-        dummy_optimizer_options = OptimizerOptions(
+        dummy_optimizer_options = utils.OptimizerOptions(
             init_lr=0.01,
             num_train_steps=10000,
             num_warmup_steps=500,
