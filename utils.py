@@ -104,14 +104,14 @@ class KerasModelWrapper(object):
 @attr.s(eq=False, frozen=False, slots=True)
 class OptimizerOptions(object):
 
-    init_lr = attr.ib()
-    num_train_steps = attr.ib()
-    num_warmup_steps = attr.ib()
-    min_lr_ratio = attr.ib()
-    adam_beta1 = attr.ib()
-    adam_beta2 = attr.ib()
-    adam_epsilon = attr.ib()
-    weight_decay_rate = attr.ib()
+    init_lr = attr.ib(default=0.01)
+    num_train_steps = attr.ib(default=10000)
+    num_warmup_steps = attr.ib(default=500)
+    min_lr_ratio = attr.ib(0.0)
+    adam_beta1 = attr.ib(0.99)
+    adam_beta2 = attr.ib(0.999)
+    adam_epsilon = attr.ib(1e-7)
+    weight_decay_rate = attr.ib(0.01)
 
 
 class MaskedLMCrossEntropy(tf.keras.losses.Loss):

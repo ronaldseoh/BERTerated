@@ -157,16 +157,7 @@ def build_federated_averaging_process(
     @tff.tf_computation
     def __dummy_get_client_state():
         
-        dummy_optimizer_options = utils.OptimizerOptions(
-            init_lr=0.01,
-            num_train_steps=10000,
-            num_warmup_steps=500,
-            min_lr_ratio=0.0,
-            adam_beta1=0.99,
-            adam_beta2=0.999,
-            adam_epsilon=1e-7,
-            weight_decay_rate=0.01,
-        )
+        dummy_optimizer_options = utils.OptimizerOptions()
 
         return fedavg_client.ClientState(
             client_serial=0, num_processed=0, optimizer_options=dummy_optimizer_options)
