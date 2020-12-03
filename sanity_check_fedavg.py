@@ -196,16 +196,7 @@ def main(argv):
     
     # Initialize client states for all clients
     for i, client_id in enumerate(train_data.client_ids):
-        client_optimizer_options = utils.OptimizerOptions(
-            init_lr=0.01,
-            num_train_steps=10000,
-            num_warmup_steps=500,
-            min_lr_ratio=0.0,
-            adam_beta1=0.99,
-            adam_beta2=0.999,
-            adam_epsilon=1e-7,
-            weight_decay_rate=0.01,
-        )
+        client_optimizer_options = utils.OptimizerOptions()
 
         client_states[client_id] = fedavg_client.ClientState(
             client_serial=i,
