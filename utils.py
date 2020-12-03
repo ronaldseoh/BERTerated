@@ -100,6 +100,19 @@ class KerasModelWrapper(object):
             list(model_weights.non_trainable))
 
 
+@attr.s(eq=False, frozen=True, slots=True)
+class OptimizerOptions(object):
+
+    init_lr = attr.ib()
+    num_train_steps = attr.ib()
+    num_warmup_steps = attr.ib()
+    min_lr_ratio = attr.ib()
+    adam_beta1 = attr.ib()
+    adam_beta2 = attr.ib()
+    adam_epsilon = attr.ib()
+    weight_decay_rate = attr.ib()
+
+
 class MaskedLMCrossEntropy(tf.keras.losses.Loss):
 
     def call(self, y_true, y_pred):

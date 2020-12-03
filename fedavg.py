@@ -58,18 +58,6 @@ class BroadcastMessage(object):
     model_weights = attr.ib()
     round_num = attr.ib()
 
-@attr.s(eq=False, frozen=True, slots=True)
-class OptimizerOptions(object):
-
-    init_lr = attr.ib()
-    num_train_steps = attr.ib()
-    num_warmup_steps = attr.ib()
-    min_lr_ratio = attr.ib()
-    adam_beta1 = attr.ib()
-    adam_beta2 = attr.ib()
-    adam_epsilon = attr.ib()
-    weight_decay_rate = attr.ib()
-
 
 @tf.function
 def update_server(model, server_optimizer, server_state, weights_delta):
