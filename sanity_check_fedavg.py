@@ -22,6 +22,8 @@ to test out the changes in our version of FedAvg.
 
 import collections
 import functools
+import math
+
 from absl import app
 from absl import flags
 import numpy as np
@@ -176,7 +178,7 @@ def main(argv):
     
     # Initialize client states for all clients
     for i, client_id in enumerate(train_data.client_ids):
-        client_optimizer_options = fedavg.OptimizerOptions(
+        client_optimizer_options = utils.OptimizerOptions(
             init_lr=0.01,
             num_train_steps=10000,
             num_warmup_steps=500,
@@ -203,13 +205,29 @@ def main(argv):
             size=FLAGS.train_clients_per_round,
             replace=False)
 
-        sampled_train_data = [
-            train_data.create_tf_dataset_for_client(train_data.client_ids[client_serial])
-            for client_serial in sampled_client_serials
-        ]
+        # Generate client datasets
+        sampled_train_data = []
+        sampled_client_states = []
         
-        sampled_client_states = [
-            client_states[train_data.client_ids[client_serial]] for client_serial in sampled_client_serials]
+        for client_serial in sampled_client_serials:
+            client_data = train_data.create_tf_dataset_for_client(train_data.client_ids[client_serial])
+            
+            # Check the client lengths and put appropriate number of
+            # training steps into OptimizerOptions
+            # Apparently iterating through each of them is 
+            # the only way to get the lengths of tf.data.Dataset
+            # This is not very cool tbh.
+            client_data_length = 0
+            
+            for _ in client_data:
+                client_data_length = client_data_length + 1
+
+            client_train_steps = math.ceil(client_data_length / FLAGS.batch_size)
+            
+            client_states[train_data.client_ids[client_serial]].optimizer_options.num_train_steps = client_train_steps
+
+            sampled_train_data.append(client_data)
+            sampled_client_states.append(client_states[train_data.client_ids[client_serial]])
 
         server_state, new_client_states, train_metrics = iterative_process.next(
             server_state, sampled_client_states, sampled_train_data)
