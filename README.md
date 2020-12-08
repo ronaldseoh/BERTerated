@@ -1,4 +1,4 @@
-# BERTerated Learning: Efficient Federated Learning for BERT-based Models
+# BERTerated Learning
 
 This repository contains the codes used to produce the results from the technical report *BERTerated Learning: Efficient Federated Learning for BERT-based Models*.
 
